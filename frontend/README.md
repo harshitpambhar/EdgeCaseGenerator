@@ -1,76 +1,75 @@
-# Frontend - AI-Powered Smart Test Case Generator
+# React + TypeScript + Vite
 
-This folder contains the web client for the AI-Powered Smart Test Case Generator.
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-## Purpose
+Currently, two official plugins are available:
 
-The frontend provides:
-- Repository/project input screens
-- Test-case generation workflow UI
-- Progress and job status tracking
-- Coverage/risk dashboards and reports
-- Authentication and user session flows
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-## Planned Stack
+## React Compiler
 
-- React + TypeScript
-- Vite
-- Tailwind CSS
-- Redux Toolkit
-- React Router
-- Axios
+The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
 
-## Suggested Folder Structure
+Note: This will impact Vite dev & build performances.
 
-```text
-frontend/
-  src/
-    api/
-    components/
-    pages/
-    features/
-    hooks/
-    store/
-    utils/
-  public/
-  index.html
-  package.json
+## Expanding the ESLint configuration
+
+If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+
+```js
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+
+      // Remove tseslint.configs.recommended and replace with this
+      tseslint.configs.recommendedTypeChecked,
+      // Alternatively, use this for stricter rules
+      tseslint.configs.strictTypeChecked,
+      // Optionally, add this for stylistic rules
+      tseslint.configs.stylisticTypeChecked,
+
+      // Other configs...
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
 ```
 
-## Getting Started
+You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
 
-1. Install dependencies:
-   npm install
+```js
+// eslint.config.js
+import reactX from 'eslint-plugin-react-x'
+import reactDom from 'eslint-plugin-react-dom'
 
-2. Start development server:
-   npm run dev
-
-3. Build production bundle:
-   npm run build
-
-## Environment Variables
-
-Create a .env file in this folder.
-
-Example:
-
-VITE_API_BASE_URL=http://localhost:8000
-VITE_APP_NAME=AI Smart Test Case Generator
-
-## Scripts (Expected)
-
-- npm run dev: Start local development server
-- npm run build: Build for production
-- npm run preview: Preview production build
-- npm run test: Run frontend tests
-- npm run lint: Run lint checks
-
-## Integration Notes
-
-- Backend API base URL should be configured via VITE_API_BASE_URL.
-- Keep API calls in src/api to centralize error handling and auth tokens.
-- Use feature-based modules to keep components maintainable as the app grows.
-
-## Status
-
-Scaffold not initialized yet in this folder.
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+      // Enable lint rules for React
+      reactX.configs['recommended-typescript'],
+      // Enable lint rules for React DOM
+      reactDom.configs.recommended,
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
+```
