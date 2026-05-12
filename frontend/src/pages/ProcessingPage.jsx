@@ -25,27 +25,32 @@ export default function ProcessingPage() {
   }, []);
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
+    <div className="max-w-3xl mx-auto space-y-10 pb-12">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="text-center">
-        <h2 className="text-2xl font-bold text-[#F8FAFC] mb-2">Processing Repository</h2>
-        <p className="text-sm text-[#94A3B8]">AI engine is analyzing your codebase</p>
+        <h2 className="text-4xl font-black font-heading text-white tracking-tighter">Processing Core</h2>
+        <div className="flex items-center justify-center gap-2 mt-2">
+          <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Neural Sync in Progress</p>
+        </div>
       </motion.div>
 
       {/* Progress Card */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-        className="rounded-2xl bg-[#1E293B]/60 border border-[#334155]/50 p-8">
+        className="rounded-[2.5rem] glass-panel border-white/5 p-10 bg-[#07111f]/40 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-full bg-grid-cyber opacity-5 pointer-events-none" />
+        
         {/* Overall progress */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-[#94A3B8]">Overall Progress</span>
-            <span className="text-sm font-bold text-[#F8FAFC]">{Math.min(currentStep * 20, 100)}%</span>
+        <div className="mb-12 relative z-10">
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Neural Integration Level</span>
+            <span className="text-sm font-black text-cyan-400 font-mono tracking-tighter">{Math.min(currentStep * 20, 100)}%</span>
           </div>
-          <div className="h-2 rounded-full bg-[#0F172A] overflow-hidden">
+          <div className="h-2 rounded-full bg-white/5 overflow-hidden">
             <motion.div
               animate={{ width: `${Math.min(currentStep * 20, 100)}%` }}
-              transition={{ duration: 0.8, ease: 'easeOut' }}
-              className="h-full rounded-full bg-gradient-to-r from-[#6366F1] to-[#818CF8]"
+              transition={{ duration: 1, ease: 'easeOut' }}
+              className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 shadow-[0_0_15px_rgba(34,211,238,0.4)]"
             />
           </div>
         </div>
@@ -54,37 +59,39 @@ export default function ProcessingPage() {
       </motion.div>
 
       {/* Info cards */}
-      <div className="grid sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 relative z-10">
         {[
           { label: 'Files Scanned', value: currentStep >= 1 ? '347' : '—', active: currentStep >= 1 },
           { label: 'Functions Found', value: currentStep >= 2 ? '1,203' : '—', active: currentStep >= 2 },
           { label: 'Tests Generated', value: currentStep >= 4 ? '486' : '—', active: currentStep >= 4 },
         ].map((item, i) => (
           <motion.div key={i} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.1 }}
-            className={`rounded-xl border p-4 text-center transition-all ${
-              item.active ? 'bg-[#1E293B]/60 border-[#6366F1]/20' : 'bg-[#1E293B]/30 border-[#334155]/30'
+            className={`rounded-2xl border p-6 text-center transition-all duration-500 ${
+              item.active 
+              ? 'bg-white/[0.03] border-cyan-400/30 shadow-[0_0_20px_rgba(34,211,238,0.1)]' 
+              : 'bg-white/[0.01] border-white/5'
             }`}>
-            <p className="text-2xl font-bold text-[#F8FAFC] mb-1">{item.value}</p>
-            <p className="text-xs text-[#64748B]">{item.label}</p>
+            <p className={`text-3xl font-black font-heading tracking-tighter mb-1 transition-colors duration-500 ${item.active ? 'text-white' : 'text-slate-700'}`}>{item.value}</p>
+            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{item.label}</p>
           </motion.div>
         ))}
       </div>
 
       {/* Complete button */}
       {isComplete && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-4">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#10B981]/10 border border-[#10B981]/20">
-            <HiOutlineCheck className="text-[#10B981]" />
-            <span className="text-sm font-medium text-[#10B981]">Analysis Complete!</span>
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center space-y-6 pt-4">
+          <div className="inline-flex items-center gap-3 px-6 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.1)]">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Protocol Succeeded</span>
           </div>
-          <div className="flex justify-center gap-3">
+          <div className="flex justify-center gap-4">
             <button onClick={() => navigate('/explorer')}
-              className="h-10 px-6 rounded-xl bg-gradient-to-r from-[#6366F1] to-[#818CF8] text-sm font-semibold text-white hover:shadow-lg transition-all cursor-pointer border-none">
-              View Results
+              className="h-12 px-8 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-600 text-[10px] font-black text-white uppercase tracking-widest hover:shadow-[0_0_25px_rgba(34,211,238,0.4)] transition-all border-none cursor-pointer active:scale-95">
+              Access Results
             </button>
             <button onClick={() => navigate('/coverage')}
-              className="h-10 px-6 rounded-xl bg-[#1E293B] border border-[#334155] text-sm font-medium text-[#F8FAFC] hover:border-[#6366F1]/40 transition-all cursor-pointer">
-              Coverage Report
+              className="h-12 px-8 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black text-white uppercase tracking-widest hover:bg-white/10 hover:border-cyan-400/30 transition-all cursor-pointer">
+              Intel Report
             </button>
           </div>
         </motion.div>

@@ -1,41 +1,41 @@
 import { motion } from 'framer-motion';
 
-export default function AnalyticsCard({ title, value, change, icon: Icon, color = 'accent', delay = 0 }) {
+export default function AnalyticsCard({ title, value, change, icon: Icon, color = 'cyan', delay = 0 }) {
   const colorMap = {
-    accent: { bg: 'bg-[#6366F1]/10', text: 'text-[#818CF8]', border: 'border-[#6366F1]/20', glow: 'shadow-[#6366F1]/5' },
-    success: { bg: 'bg-[#10B981]/10', text: 'text-[#34D399]', border: 'border-[#10B981]/20', glow: 'shadow-[#10B981]/5' },
-    warning: { bg: 'bg-[#F59E0B]/10', text: 'text-[#FBBF24]', border: 'border-[#F59E0B]/20', glow: 'shadow-[#F59E0B]/5' },
-    error: { bg: 'bg-[#EF4444]/10', text: 'text-[#F87171]', border: 'border-[#EF4444]/20', glow: 'shadow-[#EF4444]/5' },
+    cyan: { bg: 'bg-cyan-500/10', text: 'text-cyan-400', border: 'border-cyan-500/20', glow: 'shadow-cyan-500/5' },
+    blue: { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/20', glow: 'shadow-blue-500/5' },
+    purple: { bg: 'bg-purple-500/10', text: 'text-purple-400', border: 'border-purple-500/20', glow: 'shadow-purple-500/5' },
+    emerald: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20', glow: 'shadow-emerald-500/5' },
+    rose: { bg: 'bg-rose-500/10', text: 'text-rose-400', border: 'border-rose-500/20', glow: 'shadow-rose-500/5' },
   };
 
-  const c = colorMap[color] || colorMap.accent;
+  const c = colorMap[color] || colorMap.cyan;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.5, ease: 'easeOut' }}
-      whileHover={{ y: -4, transition: { duration: 0.2 } }}
-      className={`relative rounded-2xl bg-[#1E293B]/80 border ${c.border} p-5 overflow-hidden group hover:shadow-xl ${c.glow} transition-shadow duration-300`}
+      transition={{ delay, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      className={`relative rounded-[2rem] glass-card p-6 overflow-hidden group`}
     >
-      {/* Subtle gradient overlay on hover */}
-      <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-transparent ${c.bg}`} />
-
+      {/* Dynamic Glow */}
+      <div className={`absolute top-0 right-0 w-24 h-24 blur-[60px] opacity-20 group-hover:opacity-40 transition-opacity duration-500 ${c.bg}`} />
+      
       <div className="relative z-10">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-sm font-medium text-[#94A3B8]">{title}</span>
-          <div className={`w-10 h-10 rounded-xl ${c.bg} flex items-center justify-center`}>
+        <div className="flex items-center justify-between mb-5">
+          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">{title}</p>
+          <div className={`w-10 h-10 rounded-2xl ${c.bg} flex items-center justify-center border ${c.border} group-hover:scale-110 transition-transform duration-500`}>
             {Icon && <Icon className={`text-xl ${c.text}`} />}
           </div>
         </div>
-        <div className="flex items-end gap-3">
-          <span className="text-3xl font-bold text-[#F8FAFC]">{value}</span>
+        <div className="flex items-end justify-between">
+          <span className="text-3xl font-black font-heading text-white">{value}</span>
           {change && (
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full mb-1 ${
-              change.startsWith('+') ? 'bg-[#10B981]/10 text-[#34D399]' : 'bg-[#EF4444]/10 text-[#F87171]'
+            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+              change.startsWith('+') ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
             }`}>
               {change}
-            </span>
+            </div>
           )}
         </div>
       </div>

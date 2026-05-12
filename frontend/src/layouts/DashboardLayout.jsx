@@ -8,7 +8,7 @@ export default function DashboardLayout() {
   const { isCollapsed } = useSidebar();
 
   return (
-    <div className="min-h-screen bg-[#0F172A] bg-grid">
+    <div className="min-h-screen bg-[#050816] bg-mesh bg-grid-cyber">
       <Sidebar />
       <motion.div
         animate={{ marginLeft: window.innerWidth >= 1024 ? (isCollapsed ? 72 : 260) : 0 }}

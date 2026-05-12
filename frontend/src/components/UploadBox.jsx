@@ -41,32 +41,32 @@ export default function UploadBox({ onFilesSelected }) {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         animate={{
-          borderColor: isDragging ? '#6366F1' : '#334155',
-          backgroundColor: isDragging ? 'rgba(99, 102, 241, 0.05)' : 'transparent',
+          borderColor: isDragging ? '#22d3ee' : 'rgba(255, 255, 255, 0.05)',
+          backgroundColor: isDragging ? 'rgba(34, 211, 238, 0.05)' : 'transparent',
         }}
-        className="relative rounded-2xl border-2 border-dashed border-[#334155] p-10 text-center cursor-pointer hover:border-[#6366F1]/50 transition-colors group"
+        className="relative rounded-[2rem] border-2 border-dashed p-12 text-center cursor-pointer group transition-all duration-500"
       >
         <input
           type="file"
           multiple
           onChange={handleFileInput}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
           accept=".zip,.tar,.gz,.py,.js,.ts,.java,.go,.rs,.cpp,.c,.rb"
         />
         <motion.div
-          animate={{ y: isDragging ? -8 : 0 }}
-          className="flex flex-col items-center"
+          animate={{ scale: isDragging ? 1.05 : 1 }}
+          className="flex flex-col items-center relative z-10"
         >
-          <div className="w-16 h-16 rounded-2xl bg-[#6366F1]/10 flex items-center justify-center mb-4 group-hover:bg-[#6366F1]/20 transition-colors">
-            <HiOutlineCloudUpload className="text-3xl text-[#818CF8]" />
+          <div className="w-20 h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 group-hover:border-cyan-400/50 group-hover:bg-cyan-400/5 transition-all duration-500">
+            <HiOutlineCloudUpload className="text-4xl text-cyan-400" />
           </div>
-          <p className="text-base font-semibold text-[#F8FAFC] mb-1">
-            {isDragging ? 'Drop files here' : 'Drag & drop your files'}
-          </p>
-          <p className="text-sm text-[#64748B] mb-4">or click to browse</p>
-          <div className="flex flex-wrap gap-2 justify-center">
-            {['.py', '.js', '.ts', '.java', '.go', '.zip'].map(ext => (
-              <span key={ext} className="text-xs px-2 py-1 rounded-md bg-[#1E293B] text-[#94A3B8] border border-[#334155]">{ext}</span>
+          <h4 className="text-lg font-black font-heading text-white uppercase tracking-tight mb-2">
+            {isDragging ? 'Neural Link Ready' : 'Inject Source Archives'}
+          </h4>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6">Drag & drop or establish connection manually</p>
+          <div className="flex flex-wrap gap-3 justify-center">
+            {['.py', '.js', '.ts', '.zip', '.go', '.rs'].map(ext => (
+              <span key={ext} className="text-[9px] font-black px-3 py-1 rounded-lg bg-[#050816] text-slate-400 border border-white/5 uppercase tracking-tighter">{ext}</span>
             ))}
           </div>
         </motion.div>
@@ -74,26 +74,28 @@ export default function UploadBox({ onFilesSelected }) {
 
       {/* File list */}
       {files.length > 0 && (
-        <div className="mt-4 space-y-2">
+        <div className="mt-8 space-y-3">
           {files.map((file, i) => (
             <motion.div
               key={i}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex items-center justify-between px-4 py-3 rounded-xl bg-[#1E293B]/60 border border-[#334155]/50"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center justify-between px-6 py-4 rounded-2xl bg-[#050816]/60 border border-white/5 group hover:border-cyan-400/30 transition-all"
             >
-              <div className="flex items-center gap-3">
-                <HiOutlineDocumentText className="text-[#818CF8]" />
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
+                  <HiOutlineDocumentText className="text-xl text-cyan-400" />
+                </div>
                 <div>
-                  <p className="text-sm font-medium text-[#F8FAFC]">{file.name}</p>
-                  <p className="text-xs text-[#64748B]">{(file.size / 1024).toFixed(1)} KB</p>
+                  <p className="text-sm font-bold text-white group-hover:text-cyan-400 transition-colors">{file.name}</p>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-tighter mt-0.5">DATA FRAGMENT: {(file.size / 1024).toFixed(1)} KB</p>
                 </div>
               </div>
               <button
                 onClick={() => removeFile(i)}
-                className="w-7 h-7 rounded-lg hover:bg-[#EF4444]/10 flex items-center justify-center text-[#64748B] hover:text-[#EF4444] transition-all border-none cursor-pointer bg-transparent"
+                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-rose-500/10 flex items-center justify-center text-slate-500 hover:text-rose-500 transition-all border-none cursor-pointer"
               >
-                <HiOutlineX />
+                <HiOutlineX className="text-lg" />
               </button>
             </motion.div>
           ))}

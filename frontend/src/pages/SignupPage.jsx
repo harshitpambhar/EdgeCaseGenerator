@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { HiOutlineMail, HiOutlineLockClosed, HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi';
+import { HiOutlineMail, HiOutlineLockClosed, HiOutlineUser, HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi';
 import { RiRobot2Line, RiGithubFill, RiGoogleFill } from 'react-icons/ri';
 import { useAuth } from '../context/AuthContext';
 
-export default function LoginPage() {
+export default function SignupPage() {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -15,6 +16,7 @@ export default function LoginPage() {
 
   const validate = () => {
     const errs = {};
+    if (!name) errs.name = 'Name is required';
     if (!email) errs.email = 'Email is required';
     else if (!/\S+@\S+\.\S+/.test(email)) errs.email = 'Invalid email format';
     if (!password) errs.password = 'Password is required';
@@ -26,7 +28,7 @@ export default function LoginPage() {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validate()) {
-      login({ email, password });
+      login({ name, email, password });
       navigate('/dashboard');
     }
   };
@@ -46,8 +48,8 @@ export default function LoginPage() {
       <div className="glass-panel rounded-[2.5rem] p-10 border-white/10 bg-[#07111f]/40 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 blur-3xl" />
         <div className="text-center mb-10 relative z-10">
-          <h1 className="text-3xl font-black font-heading text-white mb-2 uppercase tracking-tight">Sync Portal</h1>
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Authorize Neural Link</p>
+          <h1 className="text-3xl font-black font-heading text-white mb-2 uppercase tracking-tight">Access Protocol</h1>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Establish your neural identity</p>
         </div>
 
         {/* Social buttons */}
@@ -62,14 +64,25 @@ export default function LoginPage() {
 
         <div className="flex items-center gap-4 mb-8 relative z-10">
           <div className="flex-1 h-px bg-white/5" />
-          <span className="text-[9px] font-black text-slate-600 uppercase tracking-[0.3em]">Credentials Sync</span>
+          <span className="text-[9px] font-black text-slate-600 uppercase tracking-[0.3em]">Direct Registration</span>
           <div className="flex-1 h-px bg-white/5" />
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
+          {/* Name */}
+          <div>
+            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-1">Archive Identity (Name)</label>
+            <div className="relative group">
+              <HiOutlineUser className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-cyan-400 transition-colors" />
+              <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="NEURAL_OPERATIVE_01"
+                className={`w-full h-12 pl-12 pr-4 rounded-xl bg-[#050816]/60 border text-xs font-bold text-white placeholder-slate-800 focus:outline-none focus:ring-4 transition-all ${errors.name ? 'border-rose-500/50 focus:ring-rose-500/5' : 'border-white/5 focus:border-cyan-400/50 focus:ring-cyan-400/5'}`} />
+            </div>
+            {errors.name && <p className="text-[9px] font-black text-rose-500 mt-2 ml-1 uppercase tracking-tighter">{errors.name}</p>}
+          </div>
+
           {/* Email */}
           <div>
-            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-1">Archive ID (Email)</label>
+            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-1">Communication Node (Email)</label>
             <div className="relative group">
               <HiOutlineMail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-cyan-400 transition-colors" />
               <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="nexus@core.sync"
@@ -80,7 +93,7 @@ export default function LoginPage() {
 
           {/* Password */}
           <div>
-            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-1">Access Key (Password)</label>
+            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-1">Encryption Key (Password)</label>
             <div className="relative group">
               <HiOutlineLockClosed className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-cyan-400 transition-colors" />
               <input type={showPass ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••"
@@ -93,25 +106,14 @@ export default function LoginPage() {
             {errors.password && <p className="text-[9px] font-black text-rose-500 mt-2 ml-1 uppercase tracking-tighter">{errors.password}</p>}
           </div>
 
-          <div className="flex items-center justify-between px-1">
-            <label className="flex items-center gap-2 cursor-pointer group">
-              <div className="relative">
-                <input type="checkbox" className="w-4 h-4 rounded bg-white/5 border-white/10 accent-cyan-400 cursor-pointer appearance-none checked:bg-cyan-400 transition-all border" />
-                <HiOutlineCheck className="absolute top-0.5 left-0.5 text-[12px] text-[#050816] pointer-events-none opacity-0 checked:opacity-100 transition-opacity" />
-              </div>
-              <span className="text-[10px] font-black text-slate-500 group-hover:text-slate-300 transition-colors uppercase tracking-widest">Persist Link</span>
-            </label>
-            <a href="#" className="text-[10px] font-black text-cyan-400 hover:text-cyan-300 transition-colors no-underline uppercase tracking-widest">Lost Key?</a>
-          </div>
-
           <button type="submit"
             className="w-full h-14 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-600 text-[10px] font-black text-white uppercase tracking-[0.2em] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] transition-all cursor-pointer border-none active:scale-95">
-            Establish Link
+            Initialize Access
           </button>
         </form>
 
         <p className="text-center text-[10px] font-black text-slate-500 mt-10 uppercase tracking-[0.2em] relative z-10">
-          New Operative? <Link to="/signup" className="text-cyan-400 hover:text-cyan-300 no-underline transition-colors ml-1">CREATE ARCHIVE</Link>
+          Already synced? <Link to="/login" className="text-cyan-400 hover:text-cyan-300 no-underline transition-colors ml-1">SIGN IN</Link>
         </p>
       </div>
     </motion.div>

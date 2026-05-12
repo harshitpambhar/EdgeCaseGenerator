@@ -30,44 +30,50 @@ const predictions = [
 
 export default function RecommendationsPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 pb-12">
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-[#6366F1]/10 flex items-center justify-center">
-          <RiRobot2Line className="text-xl text-[#818CF8]" />
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-6">
+        <div className="w-14 h-14 rounded-[1.25rem] bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-[0_0_20px_rgba(34,211,238,0.3)]">
+          <RiRobot2Line className="text-2xl text-white" />
         </div>
         <div>
-          <h2 className="text-xl font-bold text-[#F8FAFC]">AI Recommendations</h2>
-          <p className="text-xs text-[#94A3B8]">ML-powered insights from your codebase analysis</p>
+          <h2 className="text-4xl font-black font-heading text-white tracking-tighter uppercase">Intelligence Core</h2>
+          <div className="flex items-center gap-2 mt-1">
+            <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Neural Insights Synchronized</p>
+          </div>
         </div>
       </motion.div>
 
       {/* Summary Strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { label: 'High Risk Functions', value: '4', icon: HiOutlineExclamation, color: '#EF4444' },
-          { label: 'Edge Cases Found', value: '41', icon: HiOutlineLightningBolt, color: '#F59E0B' },
-          { label: 'AI Insights', value: '12', icon: RiRobot2Line, color: '#6366F1' },
-          { label: 'Auto-Fixed', value: '8', icon: HiOutlineShieldCheck, color: '#10B981' },
+          { label: 'Critical Vulnerabilities', value: '4', icon: HiOutlineExclamation, color: '#f43f5e' },
+          { label: 'Edge Case Matrix', value: '41', icon: HiOutlineLightningBolt, color: '#f59e0b' },
+          { label: 'Neural Insights', value: '12', icon: RiRobot2Line, color: '#22d3ee' },
+          { label: 'Autonomous Patches', value: '8', icon: HiOutlineShieldCheck, color: '#10B981' },
         ].map((card, i) => (
           <motion.div key={i} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
-            className="rounded-xl bg-[#1E293B]/60 border border-[#334155]/50 p-4 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${card.color}15` }}>
-              <card.icon style={{ color: card.color }} />
-            </div>
-            <div>
-              <p className="text-xl font-bold text-[#F8FAFC]">{card.value}</p>
-              <p className="text-[11px] text-[#64748B]">{card.label}</p>
+            className="rounded-[2rem] glass-panel border-white/5 p-6 bg-[#07111f]/40 relative overflow-hidden group hover:border-white/10 transition-all">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-white/[0.03] border border-white/5" style={{ color: card.color }}>
+                <card.icon className="text-xl" />
+              </div>
+              <div>
+                <p className="text-2xl font-black font-heading text-white tracking-tighter">{card.value}</p>
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none mt-1">{card.label}</p>
+              </div>
             </div>
           </motion.div>
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid lg:grid-cols-3 gap-8">
         {/* Insights */}
-        <div className="lg:col-span-2 space-y-3">
-          <h3 className="text-sm font-semibold text-[#F8FAFC]">AI Insights</h3>
-          <div className="grid sm:grid-cols-2 gap-3">
+        <div className="lg:col-span-2 space-y-6">
+          <h3 className="text-lg font-black font-heading text-white uppercase tracking-widest px-2">Neural Analysis Feed</h3>
+          <div className="grid sm:grid-cols-2 gap-6">
             {insights.map((ins, i) => (
               <AIInsightCard key={i} {...ins} delay={i * 0.06} />
             ))}
@@ -75,39 +81,52 @@ export default function RecommendationsPage() {
         </div>
 
         {/* Edge Case Predictions */}
-        <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-[#F8FAFC]">Edge Case Predictions</h3>
-          <div className="rounded-2xl bg-[#1E293B]/60 border border-[#334155]/50 p-5 space-y-3">
-            {predictions.map((p, i) => (
-              <motion.div key={i} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.08 }}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-[#E2E8F0]">{p.label}</span>
-                  <span className="text-xs font-semibold text-[#818CF8]">{p.count}</span>
-                </div>
-                <div className="h-1.5 rounded-full bg-[#0F172A] overflow-hidden">
-                  <motion.div initial={{ width: 0 }} animate={{ width: `${(p.count / 25) * 100}%` }}
-                    transition={{ delay: i * 0.1 + 0.3, duration: 0.6 }}
-                    className="h-full rounded-full bg-gradient-to-r from-[#6366F1] to-[#818CF8]" />
-                </div>
-              </motion.div>
-            ))}
+        <div className="space-y-8">
+          <div className="space-y-4">
+            <h3 className="text-lg font-black font-heading text-white uppercase tracking-widest px-2">Anomaly Predictions</h3>
+            <div className="rounded-[2.5rem] glass-panel border-white/5 p-8 bg-[#050816]/60 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-400/5 blur-3xl" />
+              <div className="space-y-6 relative z-10">
+                {predictions.map((p, i) => (
+                  <motion.div key={i} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.08 }}>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{p.label}</span>
+                      <span className="text-xs font-black font-mono text-cyan-400">{p.count}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                      <motion.div initial={{ width: 0 }} animate={{ width: `${(p.count / 25) * 100}%` }}
+                        transition={{ delay: i * 0.1 + 0.3, duration: 1, ease: [0.16, 1, 0.3, 1] }}
+                        className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-600 shadow-[0_0_10px_rgba(34,211,238,0.4)]" />
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* High Risk Table */}
-          <div className="rounded-2xl bg-[#1E293B]/60 border border-[#334155]/50 overflow-hidden">
-            <div className="px-4 py-3 border-b border-[#334155]/50">
-              <h3 className="text-xs font-semibold text-[#F8FAFC]">High-Risk Functions</h3>
-            </div>
-            <div className="divide-y divide-[#334155]/30">
-              {highRiskFunctions.map((fn, i) => (
-                <div key={i} className="px-4 py-3 hover:bg-[#334155]/20 transition-colors cursor-pointer">
-                  <div className="flex justify-between mb-1">
-                    <span className="text-xs font-mono font-medium text-[#E2E8F0]">{fn.name}</span>
-                    <span className={`text-[10px] font-bold ${fn.risk > 80 ? 'text-[#EF4444]' : fn.risk > 60 ? 'text-[#F59E0B]' : 'text-[#10B981]'}`}>{fn.risk}%</span>
+          <div className="space-y-4">
+            <h3 className="text-lg font-black font-heading text-white uppercase tracking-widest px-2">High-Risk Nodes</h3>
+            <div className="rounded-[2.5rem] glass-panel border-white/5 overflow-hidden bg-[#07111f]/40">
+              <div className="divide-y divide-white/5">
+                {highRiskFunctions.map((fn, i) => (
+                  <div key={i} className="px-8 py-5 hover:bg-white/[0.03] transition-all cursor-pointer group">
+                    <div className="flex justify-between mb-2">
+                      <span className="text-xs font-black font-mono text-slate-200 group-hover:text-cyan-400 transition-colors">{fn.name}</span>
+                      <div className={`px-2 py-0.5 rounded-full text-[9px] font-black border ${
+                        fn.risk > 80 ? 'bg-rose-500/10 border-rose-500/20 text-rose-400' : 
+                        fn.risk > 60 ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' : 
+                        'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                      }`}>
+                        {fn.risk}% RISK
+                      </div>
+                    </div>
+                    <p className="text-[9px] font-bold text-slate-600 font-mono uppercase tracking-tighter group-hover:text-slate-400 transition-colors">
+                      {fn.file} · {fn.edgeCases} EDGE CASES · {fn.confidence}% CONFIDENCE
+                    </p>
                   </div>
-                  <p className="text-[10px] text-[#64748B] font-mono">{fn.file} · {fn.edgeCases} edge cases · {fn.confidence}% confidence</p>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         </div>
