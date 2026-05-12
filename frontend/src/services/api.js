@@ -45,6 +45,12 @@ export const coverageService = {
   getTrend: (repoId) => api.get(`/coverage/${repoId}/trend`),
 };
 
+export const authService = {
+  login: (credentials) => api.post('/auth/login', credentials),
+  signup: (userData) => api.post('/auth/register', userData),
+  getCurrentUser: () => api.get('/auth/me'),
+};
+
 export const reportService = {
   getAll: () => api.get('/reports'),
   download: (reportId, format) => api.get(`/reports/${reportId}/download?format=${format}`, { responseType: 'blob' }),

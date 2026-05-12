@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { HiOutlineMail, HiOutlineLockClosed, HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi';
+import { HiOutlineMail, HiOutlineLockClosed, HiOutlineEye, HiOutlineEyeOff, HiOutlineCheck } from 'react-icons/hi';
 import { RiRobot2Line, RiGithubFill, RiGoogleFill } from 'react-icons/ri';
 import { useAuth } from '../context/AuthContext';
 
@@ -11,7 +11,8 @@ export default function LoginPage() {
   const [showPass, setShowPass] = useState(false);
   const [errors, setErrors] = useState({});
   const { login } = useAuth();
-  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState('');
 
   const validate = () => {
     const errs = {};
@@ -23,11 +24,18 @@ export default function LoginPage() {
     return Object.keys(errs).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setApiError('');
     if (validate()) {
-      login({ email, password });
-      navigate('/dashboard');
+      setIsLoading(true);
+      const result = await login({ email, password });
+      if (result.success) {
+        navigate('/dashboard');
+      } else {
+        setApiError(result.error);
+      }
+      setIsLoading(false);
     }
   };
 
@@ -60,11 +68,11 @@ export default function LoginPage() {
           </button>
         </div>
 
-        <div className="flex items-center gap-4 mb-8 relative z-10">
-          <div className="flex-1 h-px bg-white/5" />
-          <span className="text-[9px] font-black text-slate-600 uppercase tracking-[0.3em]">Credentials Sync</span>
-          <div className="flex-1 h-px bg-white/5" />
-        </div>
+        {apiError && (
+          <div className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-[10px] font-black text-rose-500 uppercase tracking-widest text-center">
+            {apiError}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
           {/* Email */}
@@ -104,9 +112,9 @@ export default function LoginPage() {
             <a href="#" className="text-[10px] font-black text-cyan-400 hover:text-cyan-300 transition-colors no-underline uppercase tracking-widest">Lost Key?</a>
           </div>
 
-          <button type="submit"
-            className="w-full h-14 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-600 text-[10px] font-black text-white uppercase tracking-[0.2em] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] transition-all cursor-pointer border-none active:scale-95">
-            Establish Link
+          <button type="submit" disabled={isLoading}
+            className={`w-full h-14 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-600 text-[10px] font-black text-white uppercase tracking-[0.2em] transition-all cursor-pointer border-none active:scale-95 ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:shadow-[0_0_30px_rgba(34,211,238,0.4)]'}`}>
+            {isLoading ? 'Synchronizing...' : 'Establish Link'}
           </button>
         </form>
 
