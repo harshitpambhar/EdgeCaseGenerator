@@ -1,12 +1,8 @@
-import ast
+﻿import ast
 from pathlib import Path
 
 
-def calculate_complexity(
-    conditions_count,
-    loops_count,
-    exceptions_count
-):
+def calculate_complexity(conditions_count, loops_count, exceptions_count):
     """
     Simplified Cyclomatic Complexity
 
@@ -14,12 +10,7 @@ def calculate_complexity(
     1 + decision points
     """
 
-    return (
-        1
-        + conditions_count
-        + loops_count
-        + exceptions_count
-    )
+    return 1 + conditions_count + loops_count + exceptions_count
 
 
 def parse_python_file(file_path: str) -> dict:
@@ -30,7 +21,6 @@ def parse_python_file(file_path: str) -> dict:
     functions = []
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef):
-            # gather conditions, loops, exceptions, returns
             conditions = []
             loop_count = 0
             exception_count = 0
