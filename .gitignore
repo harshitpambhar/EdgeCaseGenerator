@@ -1,0 +1,50 @@
+# OS and editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Python caches and virtual environments
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.python-version
+.venv/
+venv/
+env/
+
+# Python tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Coverage artifacts
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+coverage_temp.json
+
+# Node / frontend artifacts
+**/node_modules/
+**/dist/
+**/dist-ssr/
+
+# Runtime logs
+*.log
+logs/
+
+# Generated pipeline outputs
+parser-engine/output/parsed_output.json
+ml-service/output/edge_cases.json
+ml-service/output/generated_tests.py
+ml-service/output/generated_tests.json
+ml-service/output/risk_scores.json
+risk-analysis-service/output/risk_scores.json
+coverage-analysis-service/output/coverage_report.json
