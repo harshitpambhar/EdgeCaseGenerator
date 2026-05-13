@@ -3,17 +3,17 @@ import { AuthProvider } from './context/AuthContext';
 import { SidebarProvider } from './context/SidebarContext';
 import DashboardLayout from './layouts/DashboardLayout';
 import AuthLayout from './layouts/AuthLayout';
-import LandingPage from './pages/LandingPage';
-import LoginPage from './pages/LoginPage';
-import SignupPage from './pages/SignupPage';
-import DashboardPage from './pages/DashboardPage';
-import UploadPage from './pages/UploadPage';
-import ProcessingPage from './pages/ProcessingPage';
-import ExplorerPage from './pages/ExplorerPage';
-import CoveragePage from './pages/CoveragePage';
-import RecommendationsPage from './pages/RecommendationsPage';
-import ReportsPage from './pages/ReportsPage';
-import SettingsPage from './pages/SettingsPage';
+import LandingPage from './pages/landing/LandingPage';
+import LoginPage from './pages/auth/LoginPage';
+import SignupPage from './pages/auth/SignupPage';
+import DashboardPage from './pages/dashboard/DashboardPage';
+import UploadPage from './pages/upload/UploadPage';
+import ProcessingPage from './pages/processing/ProcessingPage';
+import ExplorerPage from './pages/explorer/ExplorerPage';
+import CoveragePage from './pages/coverage/CoveragePage';
+import RecommendationsPage from './pages/recommendations/RecommendationsPage';
+import ReportsPage from './pages/reports/ReportsPage';
+import SettingsPage from './pages/settings/SettingsPage';
 
 export default function App() {
   return (
