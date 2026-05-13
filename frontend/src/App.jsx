@@ -5,6 +5,7 @@ import DashboardLayout from './layouts/DashboardLayout';
 import AuthLayout from './layouts/AuthLayout';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
+import SignupPage from './pages/SignupPage';
 import DashboardPage from './pages/DashboardPage';
 import UploadPage from './pages/UploadPage';
 import ProcessingPage from './pages/ProcessingPage';
@@ -24,6 +25,7 @@ export default function App() {
             <Route path="/" element={<LandingPage />} />
             <Route element={<AuthLayout />}>
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<SignupPage />} />
             </Route>
 
             {/* Dashboard routes */}

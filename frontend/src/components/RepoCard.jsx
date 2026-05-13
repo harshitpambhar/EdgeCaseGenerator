@@ -3,48 +3,58 @@ import { HiOutlineStar, HiOutlineCode } from 'react-icons/hi';
 import { VscGitMerge } from 'react-icons/vsc';
 
 export default function RepoCard({ name, language, stars, coverage, risk, lastAnalyzed, delay = 0 }) {
-  const riskColor = risk === 'Low' ? 'text-[#34D399] bg-[#10B981]/10' : risk === 'Medium' ? 'text-[#FBBF24] bg-[#F59E0B]/10' : 'text-[#F87171] bg-[#EF4444]/10';
+  const riskConfig = {
+    Low: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+    Medium: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+    High: 'text-rose-400 bg-rose-500/10 border-rose-500/20'
+  };
+
+  const rc = riskConfig[risk] || riskConfig.Low;
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
+      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.4 }}
-      whileHover={{ y: -2 }}
-      className="rounded-xl bg-[#1E293B]/60 border border-[#334155]/50 p-4 hover:border-[#6366F1]/30 transition-all duration-300 group cursor-pointer"
+      transition={{ delay, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      className="rounded-[2rem] glass-card p-6 group cursor-pointer relative overflow-hidden"
     >
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-[#6366F1]/10 flex items-center justify-center">
-            <VscGitMerge className="text-[#818CF8]" />
+      <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      
+      <div className="flex items-start justify-between mb-5">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center group-hover:border-cyan-400/50 transition-colors">
+            <VscGitMerge className="text-lg text-cyan-400" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-[#F8FAFC] group-hover:text-[#818CF8] transition-colors">{name}</h3>
-            <p className="text-xs text-[#64748B]">{lastAnalyzed}</p>
+            <h3 className="text-base font-black font-heading text-white group-hover:text-cyan-400 transition-colors tracking-tight">{name}</h3>
+            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">{lastAnalyzed}</p>
           </div>
         </div>
-        <span className={`text-xs font-medium px-2 py-1 rounded-lg ${riskColor}`}>{risk} Risk</span>
+        <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border ${rc}`}>{risk} RISK</span>
       </div>
 
-      <div className="flex items-center gap-4 text-xs text-[#94A3B8]">
-        <span className="flex items-center gap-1">
-          <HiOutlineCode className="text-sm" />
+      <div className="flex items-center gap-6 text-[9px] font-black uppercase tracking-widest text-slate-400 mb-6">
+        <span className="flex items-center gap-2">
+          <HiOutlineCode className="text-sm text-cyan-400" />
           {language}
         </span>
-        <span className="flex items-center gap-1">
-          <HiOutlineStar className="text-sm text-[#FBBF24]" />
+        <span className="flex items-center gap-2">
+          <HiOutlineStar className="text-sm text-amber-400" />
           {stars}
         </span>
-        <span className="ml-auto text-[#10B981] font-semibold">{coverage}% coverage</span>
+        <div className="ml-auto flex items-center gap-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-emerald-400">{coverage}% COVERAGE</span>
+        </div>
       </div>
 
       {/* Coverage bar */}
-      <div className="mt-3 h-1.5 rounded-full bg-[#0F172A] overflow-hidden">
+      <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${coverage}%` }}
-          transition={{ delay: delay + 0.3, duration: 0.8, ease: 'easeOut' }}
-          className="h-full rounded-full bg-gradient-to-r from-[#6366F1] to-[#10B981]"
+          transition={{ delay: delay + 0.3, duration: 1, ease: 'easeOut' }}
+          className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 shadow-[0_0_15px_rgba(34,211,238,0.4)]"
         />
       </div>
     </motion.div>

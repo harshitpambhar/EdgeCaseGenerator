@@ -25,39 +25,41 @@ const summaryCards = [
 
 export default function ReportsPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 pb-12">
       {/* Summary */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
         {summaryCards.map((card, i) => (
           <motion.div key={i} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
-            className="rounded-xl bg-[#1E293B]/60 border border-[#334155]/50 p-4">
-            <p className="text-xs text-[#64748B] mb-1">{card.label}</p>
-            <p className="text-2xl font-bold text-[#F8FAFC]">{card.value}</p>
-            <p className="text-[11px] text-[#10B981] mt-1">{card.change}</p>
+            className="rounded-[2rem] glass-panel border-white/5 p-6 bg-[#07111f]/40 relative overflow-hidden group hover:border-white/10 transition-all">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-white/5 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 relative z-10">{card.label}</p>
+            <p className="text-3xl font-black font-heading text-white tracking-tighter relative z-10">{card.value}</p>
+            <p className="text-[10px] font-black text-emerald-400 mt-2 uppercase tracking-tighter relative z-10">{card.change}</p>
           </motion.div>
         ))}
       </div>
 
       {/* Download Cards */}
-      <div>
-        <h3 className="text-sm font-semibold text-[#F8FAFC] mb-4">Export Reports</h3>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="space-y-6">
+        <h3 className="text-lg font-black font-heading text-white uppercase tracking-widest px-2">Export Protocols</h3>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {reportCards.map((card, i) => (
             <motion.div key={i} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
-              whileHover={{ y: -4 }}
-              className="rounded-2xl bg-[#1E293B]/60 border border-[#334155]/50 p-5 group cursor-pointer hover:border-[#6366F1]/30 transition-all">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ backgroundColor: `${card.color}15` }}>
-                <card.icon className="text-xl" style={{ color: card.color }} />
+              whileHover={{ y: -6 }}
+              className="rounded-[2.5rem] glass-panel border-white/5 p-8 group cursor-pointer bg-[#050816]/60 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-full h-full bg-grid-cyber opacity-0 group-hover:opacity-5 transition-opacity" />
+              <div className="w-12 h-12 rounded-[1.25rem] flex items-center justify-center mb-6 bg-white/[0.03] border border-white/5 group-hover:scale-110 transition-transform" style={{ color: card.color }}>
+                <card.icon className="text-2xl" />
               </div>
-              <h4 className="text-sm font-semibold text-[#F8FAFC] mb-1 group-hover:text-[#818CF8] transition-colors">{card.title}</h4>
-              <p className="text-xs text-[#94A3B8] mb-4 leading-relaxed">{card.desc}</p>
+              <h4 className="text-sm font-black font-heading text-white mb-2 uppercase tracking-tight group-hover:text-cyan-400 transition-colors">{card.title}</h4>
+              <p className="text-[11px] font-bold text-slate-500 mb-6 leading-relaxed group-hover:text-slate-400 transition-colors">{card.desc}</p>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-[#0F172A] text-[#94A3B8] font-mono">{card.format}</span>
-                  <span className="text-[10px] text-[#64748B]">{card.size}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-[9px] font-black px-2 py-1 rounded-lg bg-[#050816] text-slate-400 border border-white/5 uppercase tracking-tighter">{card.format}</span>
+                  <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">{card.size}</span>
                 </div>
-                <button className="w-8 h-8 rounded-lg bg-[#6366F1]/10 flex items-center justify-center text-[#818CF8] hover:bg-[#6366F1]/20 transition-colors border-none cursor-pointer">
-                  <HiOutlineDownload className="text-sm" />
+                <button className="w-10 h-10 rounded-xl bg-cyan-400/10 flex items-center justify-center text-cyan-400 hover:bg-cyan-400 hover:text-[#050816] transition-all border-none cursor-pointer shadow-[0_0_15px_rgba(34,211,238,0.1)] hover:shadow-[0_0_20px_rgba(34,211,238,0.4)]">
+                  <HiOutlineDownload className="text-lg" />
                 </button>
               </div>
             </motion.div>
@@ -67,51 +69,58 @@ export default function ReportsPage() {
 
       {/* History Table */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-        className="rounded-2xl bg-[#1E293B]/60 border border-[#334155]/50 overflow-hidden">
-        <div className="px-5 py-4 border-b border-[#334155]/50 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-[#F8FAFC]">Report History</h3>
-          <button className="text-xs text-[#818CF8] hover:text-[#6366F1] bg-transparent border-none cursor-pointer">Export All →</button>
+        className="rounded-[2.5rem] glass-panel border-white/5 overflow-hidden bg-[#07111f]/40 relative">
+        <div className="absolute top-0 right-0 w-full h-full bg-grid-cyber opacity-5 pointer-events-none" />
+        <div className="px-8 py-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02] relative z-10">
+          <h3 className="text-lg font-black font-heading text-white uppercase tracking-widest">Neural History</h3>
+          <button className="text-[10px] font-black text-cyan-400 hover:text-cyan-300 transition-colors uppercase tracking-[0.2em] bg-transparent border-none cursor-pointer">
+            Archive Access →
+          </button>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto relative z-10">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-[#334155]/30">
-                <th className="text-left px-5 py-3 text-xs font-medium text-[#64748B] uppercase tracking-wider">Report</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-[#64748B] uppercase tracking-wider">Date</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-[#64748B] uppercase tracking-wider">Format</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-[#64748B] uppercase tracking-wider">Coverage</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-[#64748B] uppercase tracking-wider">Status</th>
-                <th className="text-right px-5 py-3 text-xs font-medium text-[#64748B] uppercase tracking-wider">Actions</th>
+              <tr className="border-b border-white/5">
+                <th className="text-left px-8 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Data Fragment</th>
+                <th className="text-left px-8 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Timestamp</th>
+                <th className="text-left px-8 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Encoding</th>
+                <th className="text-left px-8 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Integrity</th>
+                <th className="text-left px-8 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Protocol</th>
+                <th className="text-right px-8 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Interface</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-white/5">
               {history.map((row, i) => (
                 <motion.tr key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.06 }}
-                  className="border-b border-[#334155]/20 hover:bg-[#334155]/10 transition-colors">
-                  <td className="px-5 py-3">
-                    <span className="text-sm font-medium text-[#E2E8F0]">{row.name}</span>
+                  className="hover:bg-white/[0.02] transition-colors group">
+                  <td className="px-8 py-5">
+                    <span className="text-xs font-black font-mono text-slate-200 group-hover:text-white transition-colors">{row.name}</span>
                   </td>
-                  <td className="px-5 py-3">
-                    <span className="text-xs text-[#94A3B8] flex items-center gap-1"><HiOutlineCalendar className="text-[10px]" />{row.date}</span>
+                  <td className="px-8 py-5">
+                    <span className="text-[10px] font-bold text-slate-500 flex items-center gap-2 uppercase tracking-tighter">
+                      <HiOutlineCalendar className="text-slate-700" /> {row.date}
+                    </span>
                   </td>
-                  <td className="px-5 py-3">
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-[#0F172A] text-[#94A3B8] font-mono">{row.format}</span>
+                  <td className="px-8 py-5">
+                    <span className="text-[9px] font-black px-2 py-1 rounded bg-[#050816] text-slate-500 border border-white/5 font-mono group-hover:border-cyan-400/30 transition-colors uppercase">{row.format}</span>
                   </td>
-                  <td className="px-5 py-3">
-                    <span className="text-sm font-semibold text-[#10B981]">{row.coverage}</span>
+                  <td className="px-8 py-5">
+                    <span className="text-xs font-black font-mono text-emerald-400 tracking-tighter">{row.coverage}</span>
                   </td>
-                  <td className="px-5 py-3">
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                      row.status === 'Ready' ? 'bg-[#10B981]/10 text-[#34D399]' : 'bg-[#64748B]/10 text-[#64748B]'
+                  <td className="px-8 py-5">
+                    <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${
+                      row.status === 'Ready' 
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)]' 
+                      : 'bg-white/5 text-slate-600'
                     }`}>{row.status}</span>
                   </td>
-                  <td className="px-5 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <button className="w-7 h-7 rounded-lg hover:bg-[#334155] flex items-center justify-center text-[#94A3B8] hover:text-[#F8FAFC] transition-colors border-none cursor-pointer bg-transparent">
-                        <HiOutlineEye className="text-sm" />
+                  <td className="px-8 py-5 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <button className="w-9 h-9 rounded-xl bg-white/5 hover:bg-cyan-400/10 flex items-center justify-center text-slate-500 hover:text-cyan-400 transition-all border-none cursor-pointer group-hover:border-white/10 border">
+                        <HiOutlineEye className="text-lg" />
                       </button>
-                      <button className="w-7 h-7 rounded-lg hover:bg-[#334155] flex items-center justify-center text-[#94A3B8] hover:text-[#F8FAFC] transition-colors border-none cursor-pointer bg-transparent">
-                        <HiOutlineDownload className="text-sm" />
+                      <button className="w-9 h-9 rounded-xl bg-white/5 hover:bg-emerald-500/10 flex items-center justify-center text-slate-500 hover:text-emerald-400 transition-all border-none cursor-pointer group-hover:border-white/10 border">
+                        <HiOutlineDownload className="text-lg" />
                       </button>
                     </div>
                   </td>

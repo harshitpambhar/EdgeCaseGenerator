@@ -4,15 +4,15 @@ import { RiLoader4Line } from 'react-icons/ri';
 
 export default function LoadingPipeline({ steps, currentStep = 0 }) {
   const defaultSteps = steps || [
-    { label: 'Repository Cloned', desc: 'Fetching source code from remote' },
-    { label: 'AST Generated', desc: 'Parsing abstract syntax trees' },
-    { label: 'ML Analysis', desc: 'Running neural network analysis' },
-    { label: 'Test Generation', desc: 'Generating intelligent test cases' },
-    { label: 'Coverage Analysis', desc: 'Computing code coverage metrics' },
+    { label: 'Neural Uplink', desc: 'Connecting to source core' },
+    { label: 'Deep Scanning', desc: 'Parsing abstract syntax structures' },
+    { label: 'Machine Synthesis', desc: 'Executing neural generative models' },
+    { label: 'Test Formulation', desc: 'Synthesizing edge case protocols' },
+    { label: 'Matrix Integrity', desc: 'Finalizing coverage metrics' },
   ];
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-4">
       {defaultSteps.map((step, i) => {
         const status = i < currentStep ? 'done' : i === currentStep ? 'active' : 'pending';
 
@@ -22,54 +22,54 @@ export default function LoadingPipeline({ steps, currentStep = 0 }) {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: i * 0.15 }}
-            className="flex items-start gap-4"
+            className="flex items-start gap-6 group"
           >
             {/* Step indicator */}
             <div className="flex flex-col items-center">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-500 ${
-                status === 'done' ? 'bg-[#10B981]/20 border border-[#10B981]/30' :
-                status === 'active' ? 'bg-[#6366F1]/20 border border-[#6366F1]/30 shadow-lg shadow-[#6366F1]/20' :
-                'bg-[#1E293B] border border-[#334155]'
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all duration-500 border ${
+                status === 'done' ? 'bg-emerald-500/10 border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.1)]' :
+                status === 'active' ? 'bg-cyan-400/20 border-cyan-400/50 shadow-[0_0_20px_rgba(34,211,238,0.2)]' :
+                'bg-white/[0.02] border-white/5'
               }`}>
                 {status === 'done' ? (
                   <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring' }}>
-                    <HiOutlineCheck className="text-[#10B981] text-lg" />
+                    <HiOutlineCheck className="text-emerald-400 text-xl" />
                   </motion.div>
                 ) : status === 'active' ? (
-                  <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}>
-                    <RiLoader4Line className="text-[#818CF8] text-lg" />
+                  <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}>
+                    <RiLoader4Line className="text-cyan-400 text-xl" />
                   </motion.div>
                 ) : (
-                  <HiOutlineClock className="text-[#64748B] text-lg" />
+                  <HiOutlineClock className="text-slate-600 text-xl" />
                 )}
               </div>
               {i < defaultSteps.length - 1 && (
-                <div className={`w-0.5 h-10 my-1 rounded-full transition-colors duration-500 ${
-                  status === 'done' ? 'bg-[#10B981]/30' : 'bg-[#334155]'
+                <div className={`w-px h-12 my-2 transition-colors duration-500 ${
+                  status === 'done' ? 'bg-emerald-500/30' : 'bg-white/5'
                 }`} />
               )}
             </div>
 
             {/* Step content */}
             <div className="pt-2">
-              <p className={`text-sm font-semibold transition-colors duration-300 ${
-                status === 'done' ? 'text-[#10B981]' :
-                status === 'active' ? 'text-[#F8FAFC]' :
-                'text-[#64748B]'
+              <p className={`text-sm font-black font-heading transition-colors duration-300 uppercase tracking-widest ${
+                status === 'done' ? 'text-emerald-400' :
+                status === 'active' ? 'text-white' :
+                'text-slate-600'
               }`}>
                 {step.label}
               </p>
-              <p className="text-xs text-[#64748B] mt-0.5">{step.desc}</p>
+              <p className="text-[10px] font-bold text-slate-500 mt-1 uppercase tracking-tighter">{step.desc}</p>
               {status === 'active' && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="mt-2 h-1.5 w-48 rounded-full bg-[#0F172A] overflow-hidden"
+                  className="mt-4 h-1 w-64 rounded-full bg-white/5 overflow-hidden"
                 >
                   <motion.div
                     animate={{ x: ['-100%', '100%'] }}
-                    transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-                    className="h-full w-1/2 rounded-full bg-gradient-to-r from-transparent via-[#6366F1] to-transparent"
+                    transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                    className="h-full w-1/2 rounded-full bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_10px_rgba(34,211,238,0.5)]"
                   />
                 </motion.div>
               )}
