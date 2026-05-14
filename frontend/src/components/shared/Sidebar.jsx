@@ -2,19 +2,19 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSidebar } from '../../context/SidebarContext';
 import {
-  HiOutlineHome, HiOutlineCloudUpload, HiOutlineCog, HiOutlineChartBar,
-  HiOutlineDocumentReport, HiOutlineCode, HiOutlineLightningBolt,
-  HiOutlineBeaker, HiOutlineX,
+  HiOutlineHome, HiOutlineCloudUpload, HiOutlineCog,
+  HiOutlineDocumentReport, HiOutlineCode, HiOutlineX,
+  HiOutlineCollection, HiOutlinePlay, HiOutlineTerminal,
 } from 'react-icons/hi';
 import { RiRobot2Line } from 'react-icons/ri';
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: HiOutlineHome },
-  { path: '/upload', label: 'Upload', icon: HiOutlineCloudUpload },
-  { path: '/processing', label: 'Processing', icon: HiOutlineBeaker },
-  { path: '/explorer', label: 'Explorer', icon: HiOutlineCode },
-  { path: '/coverage', label: 'Coverage', icon: HiOutlineChartBar },
-  { path: '/recommendations', label: 'AI Insights', icon: HiOutlineLightningBolt },
+  { path: '/upload', label: 'Upload Repository', icon: HiOutlineCloudUpload },
+  { path: '/projects', label: 'Projects', icon: HiOutlineCollection },
+  { path: '/testcases', label: 'Test Cases', icon: HiOutlineCode },
+  { path: '/automation', label: 'Automation', icon: HiOutlineTerminal },
+  { path: '/executions', label: 'Executions', icon: HiOutlinePlay },
   { path: '/reports', label: 'Reports', icon: HiOutlineDocumentReport },
   { path: '/settings', label: 'Settings', icon: HiOutlineCog },
 ];
@@ -71,7 +71,7 @@ function DrawerContent({ close }) {
         <NavLink to="/upload" onClick={close} className="no-underline block">
           <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 hover:bg-indigo-500/15 transition-colors cursor-pointer">
             <HiOutlineCloudUpload className="text-indigo-400 text-sm flex-shrink-0" />
-            <span className="text-xs font-medium text-indigo-300">New analysis</span>
+            <span className="text-xs font-medium text-indigo-300">New project</span>
           </div>
         </NavLink>
       </div>
