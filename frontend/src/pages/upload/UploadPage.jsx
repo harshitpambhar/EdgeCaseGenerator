@@ -1,15 +1,13 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Info, GitBranch, Zap, Shield, Globe } from 'lucide-react';
+import { ArrowRight, Info, GitBranch, Zap, Shield, Globe, Upload as UploadIcon, X } from 'lucide-react';
 import { RiGithubFill } from 'react-icons/ri';
 import { HiOutlineCheckCircle } from 'react-icons/hi';
-import { FileUpload } from '../../components/ui/advanced-file-upload';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Button } from '../../components/ui/button';
 import { Separator } from '../../components/ui/separator';
-import LoadingPipeline from '../../components/shared/LoadingPipeline';
 
 const testTypes = [
   { id: 'functional', label: 'Functional', icon: HiOutlineCheckCircle, desc: 'Core user flows' },
@@ -48,6 +46,16 @@ export default function UploadPage() {
 
   const canRun = activeTab === 'upload' ? uploadedFiles.length > 0 : repoUrl.trim().length > 0;
 
+  // File upload handler
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    setUploadedFiles(files);
+  };
+
+  const removeFile = (index) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   const toggleTestType = (id) => {
     setSelectedTestTypes(prev =>
       prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
@@ -74,22 +82,44 @@ export default function UploadPage() {
           <h2 className="text-xl font-semibold text-white">Analyzing repository</h2>
           <p className="text-sm text-white/40 mt-1">AI is processing your codebase. This may take a moment.</p>
         </div>
-        <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-6">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs text-white/40">Overall progress</p>
-            <p className="text-xs font-medium text-indigo-400">
-              {Math.round((analysisStep / analysisPipelineSteps.length) * 100)}%
-            </p>
+          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-6">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-white/40">Overall progress</p>
+              <p className="text-xs font-medium text-indigo-400">
+                {Math.round((analysisStep / analysisPipelineSteps.length) * 100)}%
+              </p>
+            </div>
+            <div className="h-1.5 rounded-full bg-white/[0.08] overflow-hidden mb-6">
+              <motion.div
+                animate={{ width: `${(analysisStep / analysisPipelineSteps.length) * 100}%` }}
+                transition={{ duration: 0.8, ease: 'easeOut' }}
+                className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-rose-500"
+              />
+            </div>
+            {/* Pipeline steps */}
+            <div className="space-y-2">
+              {analysisPipelineSteps.map((step, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0.5 }}
+                  animate={{ opacity: analysisStep >= idx ? 1 : 0.5 }}
+                  className={`flex items-start gap-3 p-3 rounded-lg transition-colors ${
+                    analysisStep >= idx ? 'bg-indigo-500/10 border border-indigo-500/20' : 'bg-white/[0.02] border border-white/[0.05]'
+                  }`}
+                >
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold mt-0.5 ${
+                    analysisStep > idx ? 'bg-indigo-500 text-white' : analysisStep === idx ? 'bg-indigo-400/50 text-indigo-100' : 'bg-white/[0.08] text-white/40'
+                  }`}>
+                    {analysisStep > idx ? '✓' : idx + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-xs font-medium ${analysisStep >= idx ? 'text-white' : 'text-white/50'}`}>{step.label}</p>
+                    <p className="text-[11px] text-white/30 mt-0.5">{step.desc}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
           </div>
-          <div className="h-1.5 rounded-full bg-white/[0.08] overflow-hidden mb-6">
-            <motion.div
-              animate={{ width: `${(analysisStep / analysisPipelineSteps.length) * 100}%` }}
-              transition={{ duration: 0.8, ease: 'easeOut' }}
-              className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-rose-500"
-            />
-          </div>
-          <LoadingPipeline steps={analysisPipelineSteps} currentStep={analysisStep} />
-        </div>
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: 'Files scanned', value: analysisStep >= 1 ? '284' : '—', active: analysisStep >= 1 },
@@ -128,12 +158,39 @@ export default function UploadPage() {
         className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5 space-y-5">
 
         {activeTab === 'upload' ? (
-          <FileUpload
-            accept=".zip,.tar,.gz"
-            maxSize={100 * 1024 * 1024}
-            onFilesSelect={setUploadedFiles}
-            onFilesRemove={setUploadedFiles}
-          />
+          <div className="space-y-3">
+            <label className="flex flex-col items-center justify-center gap-3 p-8 rounded-xl border-2 border-dashed border-white/[0.2] hover:border-indigo-500/30 hover:bg-indigo-500/5 transition-all cursor-pointer group">
+              <UploadIcon className="w-8 h-8 text-white/40 group-hover:text-indigo-400 transition-colors" />
+              <div className="text-center">
+                <p className="text-sm font-medium text-white">Drag and drop files here</p>
+                <p className="text-xs text-white/40 mt-0.5">or click to browse</p>
+                <p className="text-[10px] text-white/20 mt-1">ZIP, TAR, or GZ files up to 100 MB</p>
+              </div>
+              <input
+                type="file"
+                multiple
+                accept=".zip,.tar,.gz"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+            </label>
+            {uploadedFiles.length > 0 && (
+              <div className="space-y-2 pt-2">
+                <p className="text-xs text-white/50">{uploadedFiles.length} file(s) selected</p>
+                {uploadedFiles.map((file, i) => (
+                  <div key={i} className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06]">
+                    <span className="text-xs text-white/70 truncate">{file.name}</span>
+                    <button
+                      onClick={() => removeFile(i)}
+                      className="p-1 hover:bg-white/[0.1] rounded transition-colors cursor-pointer"
+                    >
+                      <X className="w-4 h-4 text-white/40" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         ) : (
           <>
             <div className="space-y-1.5">

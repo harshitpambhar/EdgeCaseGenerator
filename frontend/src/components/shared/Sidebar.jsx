@@ -1,23 +1,29 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSidebar } from '../../context/SidebarContext';
+import { SIDEBAR_NAVIGATION } from '../../constants/status-values';
 import {
   HiOutlineHome, HiOutlineCloudUpload, HiOutlineCog,
   HiOutlineDocumentReport, HiOutlineCode, HiOutlineX,
   HiOutlineCollection, HiOutlinePlay, HiOutlineTerminal,
+  HiOutlineFire, HiOutlineEye, HiOutlineViewBoards,
+  HiOutlineArrowLeft,
 } from 'react-icons/hi';
 import { RiRobot2Line } from 'react-icons/ri';
 
-const navItems = [
-  { path: '/dashboard', label: 'Dashboard', icon: HiOutlineHome },
-  { path: '/upload', label: 'Upload Repository', icon: HiOutlineCloudUpload },
-  { path: '/projects', label: 'Projects', icon: HiOutlineCollection },
-  { path: '/testcases', label: 'Test Cases', icon: HiOutlineCode },
-  { path: '/automation', label: 'Automation', icon: HiOutlineTerminal },
-  { path: '/executions', label: 'Executions', icon: HiOutlinePlay },
-  { path: '/reports', label: 'Reports', icon: HiOutlineDocumentReport },
-  { path: '/settings', label: 'Settings', icon: HiOutlineCog },
-];
+const iconMap = {
+  dashboard: HiOutlineHome,
+  projects: HiOutlineCollection,
+  analysis: HiOutlineFire,
+  workflows: HiOutlineViewBoards,
+  'test-generation': HiOutlineCode,
+  'test-review': HiOutlineEye,
+  automation: HiOutlineTerminal,
+  executions: HiOutlinePlay,
+  reports: HiOutlineDocumentReport,
+  history: HiOutlineArrowLeft,
+  settings: HiOutlineCog,
+};
 
 function DrawerContent({ close }) {
   const location = useLocation();
@@ -44,8 +50,9 @@ function DrawerContent({ close }) {
 
       {/* Nav */}
       <nav className="flex-1 py-2 px-2 space-y-0.5 overflow-y-auto">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
+        {SIDEBAR_NAVIGATION.map((item) => {
+          const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
+          const Icon = iconMap[item.id] || HiOutlineHome;
           return (
             <NavLink key={item.path} to={item.path} onClick={close} className="no-underline block">
               <div className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors relative ${
@@ -58,7 +65,7 @@ function DrawerContent({ close }) {
                     transition={{ type: 'spring', stiffness: 400, damping: 35 }}
                   />
                 )}
-                <item.icon className={`text-base flex-shrink-0 ${isActive ? 'text-indigo-300' : ''}`} />
+                <Icon className={`text-base flex-shrink-0 ${isActive ? 'text-indigo-300' : ''}`} />
                 <span className="text-xs font-medium">{item.label}</span>
               </div>
             </NavLink>

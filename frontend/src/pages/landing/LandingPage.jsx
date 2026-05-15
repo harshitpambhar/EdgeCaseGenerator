@@ -4,7 +4,6 @@ import { HiOutlineArrowRight, HiOutlineCheck } from 'react-icons/hi';
 import { RiGithubFill } from 'react-icons/ri';
 import { Circle, Upload, Cpu, TestTube, Code2, Play, ShieldCheck, FileBarChart } from 'lucide-react';
 import { HeroGeometric } from '../../components/ui/shape-landing-hero';
-import { FeatureCard } from '../../components/ui/grid-feature-cards';
 import AppHeader from '../../components/shared/AppHeader';
 import Footer from '../../components/shared/Footer';
 
@@ -121,9 +120,16 @@ export default function LandingPage() {
             whileInView={{ filter: 'blur(0px)', translateY: 0, opacity: 1 }}
             viewport={{ once: true }} transition={{ delay: 0.3, duration: 0.8 }}
             className="grid grid-cols-1 divide-x divide-y divide-dashed divide-white/[0.08] border border-dashed border-white/[0.08] sm:grid-cols-2 md:grid-cols-3">
-            {features.map((feature, i) => (
-              <FeatureCard key={i} feature={feature} />
-            ))}
+            {features.map((feature, i) => {
+              const Icon = feature.icon;
+              return (
+                <div key={i} className="p-6 md:p-8">
+                  <Icon className="w-6 h-6 text-indigo-400 mb-4" />
+                  <h3 className="text-lg font-semibold text-white mb-2">{feature.title}</h3>
+                  <p className="text-white/50 text-sm leading-relaxed">{feature.description}</p>
+                </div>
+              );
+            })}
           </motion.div>
         </div>
       </section>
