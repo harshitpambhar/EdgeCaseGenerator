@@ -10,7 +10,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [errors, setErrors] = useState({});
-  const { login } = useAuth();
+  
+  // NEW: We are now bringing in socialLogin from your AuthContext!
+  const { login, socialLogin } = useAuth(); 
   const navigate = useNavigate();
 
   const validate = () => {
@@ -23,17 +25,27 @@ export default function LoginPage() {
     return Object.keys(errs).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrors((prev) => ({ ...prev, auth: null }));
+
     if (validate()) {
-      login({ email, password });
-      navigate('/dashboard');
+      try {
+        await login({ email, password });
+        navigate('/dashboard');
+      } catch (error) {
+        setErrors((prev) => ({ 
+          ...prev, 
+          auth: error.message || 'Incorrect email or password.' 
+        }));
+      }
     }
   };
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
       className="w-full max-w-md relative z-10">
+      
       {/* Logo */}
       <div className="flex items-center justify-center gap-2.5 mb-8">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6366F1] to-[#818CF8] flex items-center justify-center shadow-lg shadow-[#6366F1]/20">
@@ -51,10 +63,19 @@ export default function LoginPage() {
 
         {/* Social buttons */}
         <div className="grid grid-cols-2 gap-3 mb-6">
-          <button className="flex items-center justify-center gap-2 h-11 rounded-xl bg-[#1E293B] border border-[#334155] text-sm font-medium text-[#F8FAFC] hover:border-[#6366F1]/40 hover:bg-[#334155]/50 transition-all cursor-pointer">
+          {/* NEW: Added onClick and type="button" to GitHub */}
+          <button 
+            type="button"
+            onClick={() => socialLogin('GitHub')}
+            className="flex items-center justify-center gap-2 h-11 rounded-xl bg-[#1E293B] border border-[#334155] text-sm font-medium text-[#F8FAFC] hover:border-[#6366F1]/40 hover:bg-[#334155]/50 transition-all cursor-pointer">
             <RiGithubFill className="text-lg" /> GitHub
           </button>
-          <button className="flex items-center justify-center gap-2 h-11 rounded-xl bg-[#1E293B] border border-[#334155] text-sm font-medium text-[#F8FAFC] hover:border-[#6366F1]/40 hover:bg-[#334155]/50 transition-all cursor-pointer">
+          
+          {/* NEW: Added onClick and type="button" to Google */}
+          <button 
+            type="button"
+            onClick={() => socialLogin('Google')}
+            className="flex items-center justify-center gap-2 h-11 rounded-xl bg-[#1E293B] border border-[#334155] text-sm font-medium text-[#F8FAFC] hover:border-[#6366F1]/40 hover:bg-[#334155]/50 transition-all cursor-pointer">
             <RiGoogleFill className="text-lg text-[#FBBF24]" /> Google
           </button>
         </div>
@@ -66,6 +87,14 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+
+          {/* AWS Authentication Error Message */}
+          {errors.auth && (
+            <div className="p-3 rounded-xl bg-[#EF4444]/10 border border-[#EF4444]/20 text-sm text-[#EF4444]">
+              {errors.auth}
+            </div>
+          )}
+
           {/* Email */}
           <div>
             <label className="block text-sm font-medium text-[#94A3B8] mb-1.5">Email</label>
@@ -107,7 +136,7 @@ export default function LoginPage() {
         </form>
 
         <p className="text-center text-sm text-[#94A3B8] mt-6">
-          Don't have an account? <Link to="/" className="text-[#818CF8] hover:text-[#6366F1] no-underline font-medium">Sign up</Link>
+          Don't have an account? <Link to="/signup" className="text-[#818CF8] hover:text-[#6366F1] no-underline font-medium">Sign up</Link>
         </p>
       </div>
     </motion.div>

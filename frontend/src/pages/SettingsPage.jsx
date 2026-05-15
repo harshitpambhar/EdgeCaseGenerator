@@ -6,6 +6,9 @@ import { useAuth } from '../context/AuthContext';
 
 export default function SettingsPage() {
   const { user } = useAuth();
+  
+  // NEW: Added state to keep track of the selected theme!
+  const [activeTheme, setActiveTheme] = useState('Dark'); 
   const [notifications, setNotifications] = useState({ email: true, push: true, slack: false, weekly: true });
   const [aiConfig, setAiConfig] = useState({ confidence: 75, depth: 3, edgeCases: true, autoFix: false });
 
@@ -39,8 +42,13 @@ export default function SettingsPage() {
           <h3 className="text-sm font-semibold text-[#F8FAFC]">Profile Settings</h3>
         </div>
         <div className="flex items-start gap-6">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#6366F1] to-[#818CF8] flex items-center justify-center text-2xl font-bold text-white flex-shrink-0">
-            {user?.name?.charAt(0) || 'U'}
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#6366F1] to-[#818CF8] flex items-center justify-center text-2xl font-bold text-white flex-shrink-0 overflow-hidden">
+             {/* Show user avatar if it exists, otherwise show initial */}
+             {user?.avatar ? (
+                <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                user?.name?.charAt(0) || 'U'
+              )}
           </div>
           <div className="flex-1 grid sm:grid-cols-2 gap-4">
             <div>
@@ -74,19 +82,25 @@ export default function SettingsPage() {
         </div>
         <div className="grid grid-cols-3 gap-3">
           {[
-            { name: 'Dark', active: true, bg: 'bg-[#0F172A]' },
-            { name: 'Midnight', active: false, bg: 'bg-[#030712]' },
-            { name: 'Light', active: false, bg: 'bg-[#F1F5F9]' },
-          ].map(theme => (
+            { name: 'Dark', bg: 'bg-[#0F172A]' },
+            { name: 'Midnight', bg: 'bg-[#030712]' },
+            { name: 'Light', bg: 'bg-[#F1F5F9]' },
+          ].map(theme => {
+            // NEW: Check if this theme is the active one in our state
+            const isActive = activeTheme === theme.name;
+            
+            return (
             <div key={theme.name}
+              // NEW: Add the onClick event to change the state!
+              onClick={() => setActiveTheme(theme.name)}
               className={`rounded-xl border p-4 cursor-pointer transition-all ${
-                theme.active ? 'border-[#6366F1] bg-[#6366F1]/5' : 'border-[#334155] hover:border-[#6366F1]/30'
+                isActive ? 'border-[#6366F1] bg-[#6366F1]/5' : 'border-[#334155] hover:border-[#6366F1]/30'
               }`}>
               <div className={`w-full h-16 rounded-lg mb-3 ${theme.bg} border border-[#334155]/50`} />
               <p className="text-sm font-medium text-[#F8FAFC]">{theme.name}</p>
-              {theme.active && <p className="text-[10px] text-[#818CF8] mt-0.5">Active</p>}
+              {isActive && <p className="text-[10px] text-[#818CF8] mt-0.5">Active</p>}
             </div>
-          ))}
+          )})}
         </div>
       </motion.div>
 

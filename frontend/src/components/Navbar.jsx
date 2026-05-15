@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSidebar } from '../context/SidebarContext';
 import { useAuth } from '../context/AuthContext';
@@ -27,8 +27,11 @@ export default function Navbar() {
   const { toggleMobile } = useSidebar();
   const { user, logout } = useAuth();
   const location = useLocation();
+  
+  // All our variables are safely here!
+  const navigate = useNavigate();
   const [showProfile, setShowProfile] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
+  const [showSearch, setShowSearch] = useState(false); 
 
   const title = pageTitles[location.pathname] || 'Dashboard';
 
@@ -99,8 +102,13 @@ export default function Navbar() {
             onClick={() => setShowProfile(!showProfile)}
             className="flex items-center gap-2 h-9 px-2 rounded-lg hover:bg-[#1E293B] transition-all border-none cursor-pointer bg-transparent"
           >
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#6366F1] to-[#818CF8] flex items-center justify-center text-sm font-bold text-white">
-              {user?.name?.charAt(0) || 'U'}
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#6366F1] to-[#818CF8] flex items-center justify-center text-sm font-bold text-white overflow-hidden">
+              {/* Added logic to show Google Profile Picture if it exists! */}
+              {user?.avatar ? (
+                <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                user?.name?.charAt(0) || 'U'
+              )}
             </div>
             <span className="hidden md:block text-sm font-medium text-[#F8FAFC]">{user?.name}</span>
           </button>
@@ -118,7 +126,12 @@ export default function Navbar() {
                   <p className="text-xs text-[#64748B] mt-0.5">{user?.email}</p>
                 </div>
                 <div className="p-1.5">
-                  <button className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm text-[#94A3B8] hover:bg-[#334155] hover:text-[#F8FAFC] transition-all border-none cursor-pointer bg-transparent text-left">
+                  <button 
+                    onClick={() => {
+                      setShowProfile(false);
+                      navigate('/settings');
+                    }}
+                    className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm text-[#94A3B8] hover:bg-[#334155] hover:text-[#F8FAFC] transition-all border-none cursor-pointer bg-transparent text-left">
                     <HiOutlineUser className="text-base" />
                     Profile
                   </button>

@@ -13,6 +13,7 @@ import CoveragePage from './pages/CoveragePage';
 import RecommendationsPage from './pages/RecommendationsPage';
 import ReportsPage from './pages/ReportsPage';
 import SettingsPage from './pages/SettingsPage';
+import SignupPage from './pages/SignupPage';
 
 export default function App() {
   return (
@@ -22,8 +23,11 @@ export default function App() {
           <Routes>
             {/* Public routes */}
             <Route path="/" element={<LandingPage />} />
+            
+            {/* Authentication routes */}
             <Route element={<AuthLayout />}>
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<SignupPage />} /> 
             </Route>
 
             {/* Dashboard routes */}
@@ -38,7 +42,7 @@ export default function App() {
               <Route path="/settings" element={<SettingsPage />} />
             </Route>
 
-            {/* Fallback */}
+            {/* Fallback - catches any unknown URLs and sends them home */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </SidebarProvider>
