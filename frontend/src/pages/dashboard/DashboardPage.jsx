@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
-import { HiOutlineBeaker, HiOutlineCode, HiOutlineChartBar, HiOutlineLightningBolt, HiOutlineClock, HiOutlineArrowRight } from 'react-icons/hi';
+import { Link } from 'react-router-dom';
+import { HiOutlineBeaker, HiOutlineCode, HiOutlineChartBar, HiOutlineLightningBolt, HiOutlineClock, HiOutlineArrowRight, HiOutlineCloudUpload, HiOutlineDocumentReport } from 'react-icons/hi';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
 import AnalyticsCard from '../../components/dashboard/AnalyticsCard';
 import RepoCard from '../../components/dashboard/RepoCard';
@@ -61,6 +62,72 @@ export default function DashboardPage() {
             New analysis
           </button>
         </div>
+      </div>
+
+      {/* Quick Action Cards */}
+      <div className="grid sm:grid-cols-3 gap-4">
+        <Link to="/upload" className="no-underline block">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
+            className="group rounded-xl bg-gradient-to-br from-indigo-500/10 to-indigo-600/5 border border-indigo-500/20 hover:border-indigo-500/40 p-5 transition-all cursor-pointer"
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-white">Upload Project</p>
+                <p className="text-xs text-white/40 mt-1">Start a new analysis</p>
+              </div>
+              <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center group-hover:bg-indigo-500/30 transition-colors">
+                <HiOutlineCloudUpload className="text-indigo-400 text-lg" />
+              </div>
+            </div>
+            <div className="mt-3 flex items-center gap-2 text-indigo-400 text-xs font-medium">
+              <span>Get started</span>
+              <HiOutlineArrowRight className="text-xs" />
+            </div>
+          </motion.div>
+        </Link>
+
+        <Link to="/coverage" className="no-underline block">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+            className="group rounded-xl bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border border-emerald-500/20 hover:border-emerald-500/40 p-5 transition-all cursor-pointer"
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-white">Coverage Analysis</p>
+                <p className="text-xs text-white/40 mt-1">View coverage metrics</p>
+              </div>
+              <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center group-hover:bg-emerald-500/30 transition-colors">
+                <HiOutlineChartBar className="text-emerald-400 text-lg" />
+              </div>
+            </div>
+            <div className="mt-3 flex items-center gap-2 text-emerald-400 text-xs font-medium">
+              <span>View details</span>
+              <HiOutlineArrowRight className="text-xs" />
+            </div>
+          </motion.div>
+        </Link>
+
+        <Link to="/reports" className="no-underline block">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+            className="group rounded-xl bg-gradient-to-br from-rose-500/10 to-rose-600/5 border border-rose-500/20 hover:border-rose-500/40 p-5 transition-all cursor-pointer"
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-white">Test Reports</p>
+                <p className="text-xs text-white/40 mt-1">Download & export</p>
+              </div>
+              <div className="w-10 h-10 rounded-lg bg-rose-500/20 flex items-center justify-center group-hover:bg-rose-500/30 transition-colors">
+                <HiOutlineDocumentReport className="text-rose-400 text-lg" />
+              </div>
+            </div>
+            <div className="mt-3 flex items-center gap-2 text-rose-400 text-xs font-medium">
+              <span>View reports</span>
+              <HiOutlineArrowRight className="text-xs" />
+            </div>
+          </motion.div>
+        </Link>
       </div>
 
       {/* Stats */}

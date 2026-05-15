@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Home } from 'lucide-react';
 import { RiGithubFill, RiGoogleFill, RiRobot2Line } from 'react-icons/ri';
 import { useAuth } from '../../context/AuthContext';
 import { Input } from '../../components/ui/input';
@@ -58,13 +58,18 @@ export default function SignupPage() {
       initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
       className="w-full max-w-sm relative z-10"
     >
-      <div className="flex items-center justify-center gap-2.5 mb-8">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-rose-500 flex items-center justify-center">
-          <RiRobot2Line className="text-white text-lg" />
+      <div className="flex items-center justify-between gap-2.5 mb-8">
+        <div className="flex items-center justify-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-rose-500 flex items-center justify-center">
+            <RiRobot2Line className="text-white text-lg" />
+          </div>
+          <span className="text-xl font-semibold text-white">
+            TestGen<span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-rose-400">AI</span>
+          </span>
         </div>
-        <span className="text-xl font-semibold text-white">
-          TestGen<span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-rose-400">AI</span>
-        </span>
+        <Link to="/" className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/[0.04] border border-white/[0.08] text-white/70 hover:bg-white/[0.07] hover:text-white transition-colors">
+          <Home className="w-4 h-4" />
+        </Link>
       </div>
 
       <div className="rounded-xl bg-white/[0.03] border border-white/[0.08] p-7">
