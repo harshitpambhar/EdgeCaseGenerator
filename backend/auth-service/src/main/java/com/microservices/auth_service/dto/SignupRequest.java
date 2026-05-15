@@ -1,5 +1,6 @@
 package com.microservices.auth_service.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -11,9 +12,14 @@ import lombok.NoArgsConstructor;
 
 @Data
 @Builder
-@AllArgsConstructor
 @NoArgsConstructor
-public class AuthRequest {
+@AllArgsConstructor
+public class SignupRequest {
+
+    @NotBlank
+    @Size(max = 255)
+    @JsonAlias("name")
+    private String fullName;
 
     @NotBlank
     @Email

@@ -1,5 +1,6 @@
 package com.microservices.auth_service.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,8 +19,11 @@ public class AuthResponse {
     @AllArgsConstructor
     @NoArgsConstructor
     public static class UserDto {
-        private String name;
+        private Long id;
+
+        @JsonAlias("name")
+        private String fullName;
+
         private String email;
-        private String role;
     }
 }

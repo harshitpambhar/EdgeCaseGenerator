@@ -1,0 +1,14 @@
+package com.microservices.auth_service.client;
+
+import feign.RequestInterceptor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+
+public class UserServiceFeignConfig {
+
+    @Bean
+    public RequestInterceptor internalApiKeyInterceptor(
+            @Value("${app.internal-api-key}") String internalApiKey) {
+        return template -> template.header("X-Internal-Api-Key", internalApiKey);
+    }
+}
