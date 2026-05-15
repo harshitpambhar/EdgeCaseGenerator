@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Info } from 'lucide-react';
+import { ArrowRight, Info, Loader, CheckCircle, AlertCircle, Code2, Package, Zap, FileText } from 'lucide-react';
 import { RiGithubFill } from 'react-icons/ri';
 import { FileUpload } from '../../components/ui/advanced-file-upload';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Button } from '../../components/ui/button';
 import { Separator } from '../../components/ui/separator';
+import api, { getErrorMessage } from '../../services/api';
+import { AnalysisResults } from './AnalysisResults';
 
 const languages = ['Python', 'Node.js', 'TypeScript', 'Java', 'Go', 'Rust', 'C/C++', 'Ruby'];
 
@@ -17,9 +19,52 @@ export default function UploadPage() {
   const [framework, setFramework] = useState('auto');
   const [activeTab, setActiveTab] = useState('upload');
   const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [analysisData, setAnalysisData] = useState(null);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const canRun = activeTab === 'upload' ? uploadedFiles.length > 0 : repoUrl.trim().length > 0;
+
+  const analyzeRepository = async () => {
+    if (!repoUrl.trim()) {
+      setError('Please enter a GitHub repository URL');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setAnalysisData(null);
+
+    try {
+      const response = await api.post('/repo/analyze', { repoUrl: repoUrl.trim() });
+      setAnalysisData(response.data);
+    } catch (err) {
+      setError(getErrorMessage(err));
+      console.error('Analysis error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Show analysis results if available
+  if (analysisData) {
+    return (
+      <div className="max-w-6xl mx-auto space-y-6 pb-8">
+        <button
+          onClick={() => {
+            setAnalysisData(null);
+            setRepoUrl('');
+            setError('');
+          }}
+          className="text-sm text-white/60 hover:text-white/80 transition-colors flex items-center gap-1"
+        >
+          ← Back to upload
+        </button>
+        <AnalysisResults data={analysisData} />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-8">
@@ -138,13 +183,37 @@ export default function UploadPage() {
             ))}
           </div>
         </div>
-        <Button
-          onClick={() => navigate('/processing')}
-          disabled={!canRun}
-          className="flex-shrink-0 bg-indigo-500 hover:bg-indigo-400 text-white border-none h-9 px-5 gap-2 disabled:opacity-40"
-        >
-          Run analysis <ArrowRight className="w-4 h-4" />
-        </Button>
+        
+        <div className="flex flex-col items-end gap-2">
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs"
+            >
+              <AlertCircle className="w-4 h-4" />
+              {error}
+            </motion.div>
+          )}
+          
+          <Button
+            onClick={activeTab === 'github' ? analyzeRepository : () => navigate('/processing')}
+            disabled={!canRun || loading}
+            className="flex-shrink-0 bg-indigo-500 hover:bg-indigo-400 text-white border-none h-9 px-5 gap-2 disabled:opacity-40"
+          >
+            {loading ? (
+              <>
+                <Loader className="w-4 h-4 animate-spin" />
+                Analyzing...
+              </>
+            ) : (
+              <>
+                {activeTab === 'github' ? 'Analyze Repository' : 'Run analysis'}
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );
