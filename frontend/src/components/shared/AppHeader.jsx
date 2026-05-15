@@ -140,13 +140,13 @@ export default function AppHeader() {
           ) : (
             /* Guest buttons */
             <div className="flex items-center gap-2">
-              <Link to="/login"
-                className="h-8 px-4 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/[0.05] transition-colors no-underline flex items-center">
-                Sign in
-              </Link>
               <Link to="/signup"
                 className="h-8 px-4 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-sm text-white font-medium transition-colors no-underline flex items-center gap-1.5">
                 Get started
+              </Link>
+              <Link to="/login"
+                className="h-8 px-4 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/[0.05] transition-colors no-underline flex items-center">
+                Sign in
               </Link>
             </div>
           )}

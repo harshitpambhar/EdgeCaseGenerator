@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { HiOutlineArrowRight, HiOutlineCheck } from 'react-icons/hi';
-import { RiGithubFill } from 'react-icons/ri';
 import { Circle, Zap, Cpu, Fingerprint, GitBranch, BarChart2, RefreshCw } from 'lucide-react';
 import { HeroGeometric } from '../../components/ui/shape-landing-hero';
 import { FeatureCard } from '../../components/ui/grid-feature-cards';
@@ -95,7 +94,7 @@ export default function LandingPage() {
               </Link>
               <Link to="/login"
                 className="w-full sm:w-auto h-14 px-10 rounded-full bg-white/[0.03] border border-white/[0.08] text-white text-sm font-bold flex items-center justify-center gap-3 hover:border-indigo-400/50 hover:bg-white/[0.06] transition-all no-underline">
-                <RiGithubFill className="text-xl" /> Connect Archive
+                Sign in
               </Link>
             </motion.div>
           </div>

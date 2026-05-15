@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { RiGithubFill, RiGoogleFill, RiRobot2Line } from 'react-icons/ri';
@@ -9,6 +9,8 @@ import { Label } from '../../components/ui/label';
 import { Button } from '../../components/ui/button';
 import { Separator } from '../../components/ui/separator';
 
+const GMAIL_REGEX = /^[A-Za-z0-9+_.-]+@gmail\.com$/;
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -16,13 +18,25 @@ export default function LoginPage() {
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState('');
+  const [infoMessage, setInfoMessage] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const registeredHandled = useRef(false);
+
+  useEffect(() => {
+    if (registeredHandled.current) return;
+    if (location.state?.registered) {
+      registeredHandled.current = true;
+      setInfoMessage('Account created. Sign in with your email and password.');
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.pathname, location.state, navigate]);
 
   const validate = () => {
     const errs = {};
     if (!email) errs.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(email)) errs.email = 'Enter a valid email';
+    else if (!GMAIL_REGEX.test(email)) errs.email = 'Use a valid Gmail address (@gmail.com)';
     if (!password) errs.password = 'Password is required';
     else if (password.length < 6) errs.password = 'At least 6 characters';
     setErrors(errs);
@@ -34,9 +48,14 @@ export default function LoginPage() {
     setApiError('');
     if (!validate()) return;
     setIsLoading(true);
-    const result = await login({ email, password });
+    const result = await login({ email: email.trim(), password });
     if (result?.success) navigate('/dashboard');
-    else setApiError(result?.error || 'Something went wrong');
+    else {
+      setApiError(result?.error || 'Something went wrong');
+      if (result?.fieldErrors && Object.keys(result.fieldErrors).length > 0) {
+        setErrors((prev) => ({ ...prev, ...result.fieldErrors }));
+      }
+    }
     setIsLoading(false);
   };
 
@@ -60,6 +79,11 @@ export default function LoginPage() {
         <div className="mb-6">
           <h1 className="text-lg font-semibold text-white">Sign in</h1>
           <p className="text-sm text-white/40 mt-1">Welcome back. Enter your credentials to continue.</p>
+          <p className="text-xs text-white/30 mt-2">
+            First time here?{' '}
+            <Link to="/signup" className="text-indigo-400 hover:text-indigo-300 no-underline">Create an account</Link>
+            {' '}before signing in.
+          </p>
         </div>
 
         {/* OAuth */}
@@ -78,6 +102,12 @@ export default function LoginPage() {
           <Separator className="flex-1 bg-white/[0.06]" />
         </div>
 
+        {infoMessage && (
+          <div className="mb-4 px-3 py-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400">
+            {infoMessage}
+          </div>
+        )}
+
         {apiError && (
           <div className="mb-4 px-3 py-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs text-rose-400">
             {apiError}
@@ -91,7 +121,7 @@ export default function LoginPage() {
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
               <Input
                 id="email" type="email" value={email} onChange={e => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                placeholder="you@gmail.com"
                 className={`pl-9 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/20 focus-visible:ring-indigo-500/40 focus-visible:border-indigo-400/50 ${errors.email ? 'border-rose-500/50' : ''}`}
               />
             </div>
