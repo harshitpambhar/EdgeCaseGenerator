@@ -1,31 +1,24 @@
 import { Outlet } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import Sidebar from '../components/Sidebar';
-import Navbar from '../components/Navbar';
-import { useSidebar } from '../context/SidebarContext';
+import Sidebar from '../components/shared/Sidebar';
+import AppHeader from '../components/shared/AppHeader';
 
 export default function DashboardLayout() {
-  const { isCollapsed } = useSidebar();
-
   return (
-    <div className="min-h-screen bg-[#0F172A] bg-grid">
+    <div className="min-h-screen bg-[#030303]">
+      <AppHeader />
       <Sidebar />
-      <motion.div
-        animate={{ marginLeft: window.innerWidth >= 1024 ? (isCollapsed ? 72 : 260) : 0 }}
-        transition={{ duration: 0.3, ease: 'easeInOut' }}
-        className="min-h-screen flex flex-col"
-      >
-        <Navbar />
-        <main className="flex-1 p-4 md:p-6 overflow-x-hidden">
+      <div className="pt-14 flex flex-col min-h-screen">
+        <main className="flex-1 px-6 py-6 overflow-x-hidden">
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.25 }}
           >
             <Outlet />
           </motion.div>
         </main>
-      </motion.div>
+      </div>
     </div>
   );
 }
