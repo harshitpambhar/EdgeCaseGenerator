@@ -1,13 +1,11 @@
 import { Outlet } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import Sidebar from '../components/shared/Sidebar';
 import AppHeader from '../components/shared/AppHeader';
 
 export default function DashboardLayout() {
   return (
     <div className="min-h-screen bg-[#030303]">
       <AppHeader />
-      <Sidebar />
       <div className="pt-14 flex flex-col min-h-screen">
         <main className="flex-1 px-6 py-6 overflow-x-hidden">
           <motion.div

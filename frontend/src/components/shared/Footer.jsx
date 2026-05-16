@@ -1,25 +1,70 @@
-import { RiRobot2Line } from 'react-icons/ri';
-import { HiOutlineHeart } from 'react-icons/hi';
+import { Link } from 'react-router-dom';
+import { RiGithubFill, RiTwitterXFill, RiLinkedinBoxFill } from 'react-icons/ri';
 
 export default function Footer() {
+  const currentYear = new Date().getFullYear();
+
   return (
-    <footer className="border-t border-white/[0.06] bg-[#030303]">
-      <div className="max-w-7xl mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-400 to-rose-500 flex items-center justify-center">
-            <RiRobot2Line className="text-white text-xs" />
+    <footer className="border-t border-white/[0.06] bg-black/40 backdrop-blur-md py-12 px-6">
+      <div className="max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+          {/* Brand */}
+          <div>
+            <h3 className="text-lg font-bold text-white mb-4">QA Platform</h3>
+            <p className="text-white/40 text-sm leading-relaxed">
+              AI-powered autonomous QA automation platform for modern development teams.
+            </p>
           </div>
-          <span className="text-sm text-white/40">
-            TestGen<span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 to-rose-300 font-semibold">AI</span> © 2026
-          </span>
+
+          {/* Product */}
+          <div>
+            <h4 className="text-sm font-semibold text-white mb-4 uppercase tracking-wide">Product</h4>
+            <ul className="space-y-2">
+              <li><Link to="#" className="text-white/60 hover:text-white text-sm transition-colors">Features</Link></li>
+              <li><Link to="#" className="text-white/60 hover:text-white text-sm transition-colors">Pricing</Link></li>
+              <li><Link to="#" className="text-white/60 hover:text-white text-sm transition-colors">Documentation</Link></li>
+            </ul>
+          </div>
+
+          {/* Company */}
+          <div>
+            <h4 className="text-sm font-semibold text-white mb-4 uppercase tracking-wide">Company</h4>
+            <ul className="space-y-2">
+              <li><Link to="#" className="text-white/60 hover:text-white text-sm transition-colors">About</Link></li>
+              <li><Link to="#" className="text-white/60 hover:text-white text-sm transition-colors">Blog</Link></li>
+              <li><Link to="#" className="text-white/60 hover:text-white text-sm transition-colors">Contact</Link></li>
+            </ul>
+          </div>
+
+          {/* Legal */}
+          <div>
+            <h4 className="text-sm font-semibold text-white mb-4 uppercase tracking-wide">Legal</h4>
+            <ul className="space-y-2">
+              <li><Link to="#" className="text-white/60 hover:text-white text-sm transition-colors">Privacy</Link></li>
+              <li><Link to="#" className="text-white/60 hover:text-white text-sm transition-colors">Terms</Link></li>
+              <li><Link to="#" className="text-white/60 hover:text-white text-sm transition-colors">Security</Link></li>
+            </ul>
+          </div>
         </div>
-        <div className="flex items-center gap-1 text-xs text-white/20">
-          Made with <HiOutlineHeart className="text-rose-400/60 mx-0.5" /> by AI Engine v2.4
-        </div>
-        <div className="flex items-center gap-6">
-          {['Privacy', 'Terms', 'Docs'].map((item) => (
-            <a key={item} href="#" className="text-xs text-white/30 hover:text-white/70 transition-colors no-underline">{item}</a>
-          ))}
+
+        {/* Divider */}
+        <div className="border-t border-white/[0.06] pt-8">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            <p className="text-white/40 text-sm">
+              &copy; {currentYear} QA Platform. All rights reserved.
+            </p>
+            <div className="flex gap-4">
+              <a href="#" className="text-white/40 hover:text-indigo-400 transition-colors">
+                <RiGithubFill className="text-xl" />
+              </a>
+              <a href="#" className="text-white/40 hover:text-indigo-400 transition-colors">
+                <RiTwitterXFill className="text-xl" />
+              </a>
+              <a href="#" className="text-white/40 hover:text-indigo-400 transition-colors">
+                <RiLinkedinBoxFill className="text-xl" />
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     </footer>

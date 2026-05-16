@@ -3,12 +3,12 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { RiRobot2Line } from 'react-icons/ri';
-import { ChevronDown, LayoutDashboard, Upload, BarChart2, FileText, Settings, LogOut, User } from 'lucide-react';
+import { ChevronDown, LayoutDashboard, Upload, Play, FileText, Settings, LogOut, FolderOpen } from 'lucide-react';
 
 const navLinks = [
   { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
-  { label: 'Upload', to: '/upload', icon: Upload },
-  { label: 'Coverage', to: '/coverage', icon: BarChart2 },
+  { label: 'Projects', to: '/projects', icon: FolderOpen },
+  { label: 'Executions', to: '/executions', icon: Play },
   { label: 'Reports', to: '/reports', icon: FileText },
 ];
 
