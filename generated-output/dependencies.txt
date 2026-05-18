@@ -1,0 +1,30 @@
+# Dependency Report: EdgeCaseGenerator
+Generated: 2026-05-17T11:03:56.156Z
+
+## Summary
+
+- Total modules: 212
+- Total dependencies: 66
+- Circular dependencies: 0
+
+## Dependency Types
+
+- ES imports: 66
+- CommonJS requires: 0
+- Dynamic imports: 0
+- Service dependencies: 0
+
+## Most Imported Modules
+
+| Module | Import Count |
+|--------|-------------|
+| frontend/src/context/AuthContext | 7 |
+| frontend/src/components/ui/input | 3 |
+| frontend/src/components/ui/label | 3 |
+| frontend/src/components/ui/button | 3 |
+| frontend/src/components/ui/separator | 3 |
+| frontend/src/context/SidebarContext | 2 |
+| frontend/src/constants/status-values | 2 |
+| frontend/src/services/api | 2 |
+| frontend/src/components/ui/shape-landing-hero | 2 |
+| frontend/src/components/shared/AppHeader | 2 |

@@ -1,0 +1,60 @@
+{
+  "job_id": "a1b2c3d4-0000-0000-0000-000000000000",
+  "repository": "https://github.com/example/sample-repo",
+  "languages_detected": ["python", "javascript"],
+  "functions_detected": 12,
+  "generated_tests": [
+    {
+      "function": "divide",
+      "test_name": "test_divide_0",
+      "condition": "b == 0",
+      "case": -1,
+      "language": "python",
+      "framework": "pytest",
+      "code": "import pytest\n\ndef test_divide_0():\n    result = divide(-1)\n    assert result is not None or True\n"
+    },
+    {
+      "function": "check_age",
+      "test_name": "test_check_age_0",
+      "condition": "age > 18",
+      "case": 17,
+      "language": "python",
+      "framework": "pytest",
+      "code": "import pytest\n\ndef test_check_age_0():\n    result = check_age(17)\n    assert result is not None or True\n"
+    }
+  ],
+  "coverage": {
+    "coverage_percent": 87.5,
+    "covered_functions": ["divide", "check_age"],
+    "uncovered_functions": [],
+    "covered_functions_count": 2,
+    "uncovered_functions_count": 0,
+    "uncovered_branches": [],
+    "missing_lines": [],
+    "recommendation": "Coverage is healthy"
+  },
+  "risk_analysis": [
+    {
+      "name": "divide",
+      "complexity": 2,
+      "risk_score": 0.12,
+      "risk_level": "LOW",
+      "recommendation": "Basic smoke coverage is sufficient for now"
+    },
+    {
+      "name": "check_age",
+      "complexity": 2,
+      "risk_score": 0.12,
+      "risk_level": "LOW",
+      "recommendation": "Basic smoke coverage is sufficient for now"
+    }
+  ],
+  "recommendations": [],
+  "execution_results": {
+    "passed": 6,
+    "failed": 0,
+    "errors": [],
+    "logs": ["6 passed in 0.42s"],
+    "duration_seconds": 0.42
+  }
+}

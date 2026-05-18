@@ -1,0 +1,496 @@
+# Project Structure: EdgeCaseGenerator
+Generated: 2026-05-17T11:03:56.156Z
+
+Total Files: 260
+Total Directories: 177
+
+## Directory Tree
+
+├── .github/
+│   └── java-upgrade/
+│       ├── hooks/
+│       │   └── scripts/
+│       │       ├── recordToolUse.ps1
+│       │       └── recordToolUse.sh
+│       └── .gitignore
+├── backend/
+│   ├── api-gateway/
+│   │   ├── .mvn/
+│   │   │   └── wrapper/
+│   │   │       └── maven-wrapper.properties
+│   │   ├── src/
+│   │   │   ├── main/
+│   │   │   │   ├── java/
+│   │   │   │   │   └── com/
+│   │   │   │   │       └── microservices/
+│   │   │   │   │           └── api_gateway/
+│   │   │   │   │               └── ApiGatewayApplication.java
+│   │   │   │   └── resources/
+│   │   │   │       └── application.yml
+│   │   │   └── test/
+│   │   │       └── java/
+│   │   │           └── com/
+│   │   │               └── microservices/
+│   │   │                   └── api_gateway/
+│   │   │                       └── ApiGatewayApplicationTests.java
+│   │   ├── .gitattributes
+│   │   ├── .gitignore
+│   │   ├── mvnw
+│   │   ├── mvnw.cmd
+│   │   ├── pom.xml
+│   │   └── start.ps1
+│   ├── auth-service/
+│   │   ├── .mvn/
+│   │   │   └── wrapper/
+│   │   │       └── maven-wrapper.properties
+│   │   ├── src/
+│   │   │   ├── main/
+│   │   │   │   ├── java/
+│   │   │   │   │   └── com/
+│   │   │   │   │       └── microservices/
+│   │   │   │   │           └── auth_service/
+│   │   │   │   │               ├── client/
+│   │   │   │   │               │   ├── dto/
+│   │   │   │   │               │   ├── UserServiceClient.java
+│   │   │   │   │               │   └── UserServiceFeignConfig.java
+│   │   │   │   │               ├── config/
+│   │   │   │   │               │   └── AuthConfig.java
+│   │   │   │   │               ├── controller/
+│   │   │   │   │               │   └── AuthController.java
+│   │   │   │   │               ├── dto/
+│   │   │   │   │               │   ├── AuthRequest.java
+│   │   │   │   │               │   ├── AuthResponse.java
+│   │   │   │   │               │   ├── SignupRequest.java
+│   │   │   │   │               │   └── SignupResponse.java
+│   │   │   │   │               ├── entity/
+│   │   │   │   │               │   └── UserCredential.java
+│   │   │   │   │               ├── exception/
+│   │   │   │   │               │   ├── BadCredentialsException.java
+│   │   │   │   │               │   ├── DuplicateEmailException.java
+│   │   │   │   │               │   └── GlobalExceptionHandler.java
+│   │   │   │   │               ├── repository/
+│   │   │   │   │               │   └── UserCredentialRepository.java
+│   │   │   │   │               ├── service/
+│   │   │   │   │               │   ├── AuthService.java
+│   │   │   │   │               │   └── JwtService.java
+│   │   │   │   │               └── AuthServiceApplication.java
+│   │   │   │   └── resources/
+│   │   │   │       ├── application.yml
+│   │   │   │       └── schema.sql
+│   │   │   └── test/
+│   │   │       ├── java/
+│   │   │       │   └── com/
+│   │   │       │       └── microservices/
+│   │   │       │           └── auth_service/
+│   │   │       │               └── AuthServiceApplicationTests.java
+│   │   │       └── resources/
+│   │   │           └── application.properties
+│   │   ├── .gitattributes
+│   │   ├── .gitignore
+│   │   ├── mvnw
+│   │   ├── mvnw.cmd
+│   │   ├── pom.xml
+│   │   └── start.ps1
+│   ├── config-repo/
+│   │   ├── api-gateway.yml
+│   │   ├── application.yml
+│   │   ├── auth-service.yml
+│   │   ├── eureka-server.yml
+│   │   └── user-service.yml
+│   ├── config-server/
+│   │   ├── .mvn/
+│   │   │   └── wrapper/
+│   │   │       └── maven-wrapper.properties
+│   │   ├── src/
+│   │   │   ├── main/
+│   │   │   │   ├── java/
+│   │   │   │   │   └── com/
+│   │   │   │   │       └── microservices/
+│   │   │   │   │           └── config_server/
+│   │   │   │   │               └── ConfigServerApplication.java
+│   │   │   │   └── resources/
+│   │   │   │       └── application.yml
+│   │   │   └── test/
+│   │   │       └── java/
+│   │   │           └── com/
+│   │   │               └── microservices/
+│   │   │                   └── config_server/
+│   │   │                       └── ConfigServerApplicationTests.java
+│   │   ├── .gitattributes
+│   │   ├── .gitignore
+│   │   ├── mvnw
+│   │   ├── mvnw.cmd
+│   │   └── pom.xml
+│   ├── eureka-server/
+│   │   ├── .mvn/
+│   │   │   └── wrapper/
+│   │   │       └── maven-wrapper.properties
+│   │   ├── src/
+│   │   │   ├── main/
+│   │   │   │   ├── java/
+│   │   │   │   │   └── com/
+│   │   │   │   │       └── microservices/
+│   │   │   │   │           └── eureka_server/
+│   │   │   │   │               └── EurekaServerApplication.java
+│   │   │   │   └── resources/
+│   │   │   │       └── application.yml
+│   │   │   └── test/
+│   │   │       └── java/
+│   │   │           └── com/
+│   │   │               └── microservices/
+│   │   │                   └── eureka_server/
+│   │   │                       └── EurekaServerApplicationTests.java
+│   │   ├── .gitattributes
+│   │   ├── .gitignore
+│   │   ├── mvnw
+│   │   ├── mvnw.cmd
+│   │   └── pom.xml
+│   ├── repo-analysis-service/
+│   │   ├── .mvn/
+│   │   │   └── wrapper/
+│   │   │       └── maven-wrapper.properties
+│   │   ├── src/
+│   │   │   ├── main/
+│   │   │   │   ├── java/
+│   │   │   │   │   └── com/
+│   │   │   │   │       └── microservices/
+│   │   │   │   │           └── repo_analysis_service/
+│   │   │   │   │               ├── controller/
+│   │   │   │   │               │   └── RepositoryAnalysisController.java
+│   │   │   │   │               ├── dto/
+│   │   │   │   │               │   ├── AnalysisRequest.java
+│   │   │   │   │               │   └── AnalysisResponse.java
+│   │   │   │   │               ├── exception/
+│   │   │   │   │               │   ├── InvalidRepositoryException.java
+│   │   │   │   │               │   └── RepositoryAnalysisException.java
+│   │   │   │   │               ├── service/
+│   │   │   │   │               │   ├── GitHubRepositoryService.java
+│   │   │   │   │               │   └── RepositoryAnalysisService.java
+│   │   │   │   │               ├── util/
+│   │   │   │   │               │   ├── FileScanner.java
+│   │   │   │   │               │   └── GitHubValidator.java
+│   │   │   │   │               └── RepoAnalysisServiceApplication.java
+│   │   │   │   └── resources/
+│   │   │   │       ├── application.properties
+│   │   │   │       └── application.yml
+│   │   │   └── test/
+│   │   │       └── java/
+│   │   │           └── com/
+│   │   │               └── microservices/
+│   │   │                   └── repo_analysis_service/
+│   │   │                       └── RepoAnalysisServiceApplicationTests.java
+│   │   ├── .gitattributes
+│   │   ├── .gitignore
+│   │   ├── mvnw
+│   │   ├── mvnw.cmd
+│   │   └── pom.xml
+│   ├── user-service/
+│   │   ├── .mvn/
+│   │   │   └── wrapper/
+│   │   │       └── maven-wrapper.properties
+│   │   ├── src/
+│   │   │   ├── main/
+│   │   │   │   ├── java/
+│   │   │   │   │   └── com/
+│   │   │   │   │       └── microservices/
+│   │   │   │   │           └── user_service/
+│   │   │   │   │               ├── controller/
+│   │   │   │   │               │   └── UserController.java
+│   │   │   │   │               ├── dto/
+│   │   │   │   │               │   ├── CreateUserRequest.java
+│   │   │   │   │               │   └── UserResponse.java
+│   │   │   │   │               ├── entity/
+│   │   │   │   │               │   └── User.java
+│   │   │   │   │               ├── exception/
+│   │   │   │   │               │   ├── ConflictException.java
+│   │   │   │   │               │   ├── DuplicateEmailException.java
+│   │   │   │   │               │   ├── GlobalExceptionHandler.java
+│   │   │   │   │               │   └── ResourceNotFoundException.java
+│   │   │   │   │               ├── repository/
+│   │   │   │   │               │   └── UserRepository.java
+│   │   │   │   │               ├── security/
+│   │   │   │   │               │   ├── InternalApiKeyAuthFilter.java
+│   │   │   │   │               │   └── SecurityConfig.java
+│   │   │   │   │               ├── service/
+│   │   │   │   │               │   └── UserService.java
+│   │   │   │   │               └── UserServiceApplication.java
+│   │   │   │   └── resources/
+│   │   │   │       ├── application.yml
+│   │   │   │       └── schema.sql
+│   │   │   └── test/
+│   │   │       ├── java/
+│   │   │       │   └── com/
+│   │   │       │       └── microservices/
+│   │   │       │           └── user_service/
+│   │   │       │               └── UserServiceApplicationTests.java
+│   │   │       └── resources/
+│   │   │           └── application.properties
+│   │   ├── .gitattributes
+│   │   ├── .gitignore
+│   │   ├── mvnw
+│   │   ├── mvnw.cmd
+│   │   ├── pom.xml
+│   │   └── start.ps1
+│   ├── .env.example
+│   ├── .gitignore
+│   └── load-env.ps1
+├── coverage-analysis/
+│   ├── __init__.py
+│   └── runner.py
+├── coverage-analysis-service/
+│   ├── analyzer.py
+│   ├── coverage_runner.py
+│   ├── main.py
+│   └── utils.py
+├── docs/
+│   └── sample_pipeline_output.json
+├── edge_case_engine_ext/
+│   ├── __init__.py
+│   └── rules.py
+├── edge-case-engine/
+│   ├── __init__.py
+│   ├── generator.py
+│   └── rules.py
+├── frontend/
+│   ├── public/
+│   │   ├── favicon.svg
+│   │   └── icons.svg
+│   ├── src/
+│   │   ├── assets/
+│   │   │   ├── hero.png
+│   │   │   ├── react.svg
+│   │   │   └── vite.svg
+│   │   ├── components/
+│   │   │   ├── dashboard/
+│   │   │   │   ├── AIInsightCard.jsx
+│   │   │   │   ├── AnalyticsCard.jsx
+│   │   │   │   ├── CoverageChart.jsx
+│   │   │   │   ├── RepoCard.jsx
+│   │   │   │   └── RiskPanel.jsx
+│   │   │   ├── modals/
+│   │   │   │   └── ConfirmDialog.jsx
+│   │   │   ├── notifications/
+│   │   │   │   └── NotificationContainer.jsx
+│   │   │   ├── shared/
+│   │   │   │   ├── AppHeader.jsx
+│   │   │   │   ├── Footer.jsx
+│   │   │   │   ├── Sidebar.jsx
+│   │   │   │   └── UploadBox.jsx
+│   │   │   ├── ui/
+│   │   │   │   ├── advanced-file-upload.jsx
+│   │   │   │   ├── button.jsx
+│   │   │   │   ├── input.jsx
+│   │   │   │   ├── label.jsx
+│   │   │   │   ├── separator.jsx
+│   │   │   │   └── shape-landing-hero.jsx
+│   │   │   └── ProtectedRoute.jsx
+│   │   ├── constants/
+│   │   │   ├── api-endpoints.js
+│   │   │   └── status-values.js
+│   │   ├── context/
+│   │   │   ├── AuthContext.jsx
+│   │   │   └── SidebarContext.jsx
+│   │   ├── hooks/
+│   │   │   ├── useConfirm.jsx
+│   │   │   ├── useFetch.js
+│   │   │   ├── useLocalStorage.js
+│   │   │   └── useNotification.jsx
+│   │   ├── layouts/
+│   │   │   ├── AuthLayout.jsx
+│   │   │   └── DashboardLayout.jsx
+│   │   ├── lib/
+│   │   │   └── utils.js
+│   │   ├── pages/
+│   │   │   ├── auth/
+│   │   │   │   ├── LoginPage.jsx
+│   │   │   │   └── SignupPage.jsx
+│   │   │   ├── automation/
+│   │   │   │   ├── AutomationPage.jsx
+│   │   │   │   └── ScriptViewerPage.jsx
+│   │   │   ├── dashboard/
+│   │   │   │   └── DashboardPage.jsx
+│   │   │   ├── execution/
+│   │   │   │   ├── ExecutionConfigurationPage.jsx
+│   │   │   │   ├── ExecutionHistoryPage.jsx
+│   │   │   │   └── ExecutionPage.jsx
+│   │   │   ├── landing/
+│   │   │   │   └── LandingPage.jsx
+│   │   │   ├── projects/
+│   │   │   │   ├── ProjectOverviewPage.jsx
+│   │   │   │   └── ProjectsPage.jsx
+│   │   │   ├── reports/
+│   │   │   │   ├── CoverageReportPage.jsx
+│   │   │   │   ├── FailureAnalysisPage.jsx
+│   │   │   │   └── ReportsDashboardPage.jsx
+│   │   │   ├── repository/
+│   │   │   │   └── RepositoryAnalysisPage.jsx
+│   │   │   ├── settings/
+│   │   │   │   └── SettingsPage.jsx
+│   │   │   ├── testcases/
+│   │   │   │   ├── TestCaseDetailPage.jsx
+│   │   │   │   ├── TestCasesPage.jsx
+│   │   │   │   ├── TestGenerationPage.jsx
+│   │   │   │   └── TestReviewPage.jsx
+│   │   │   ├── upload/
+│   │   │   │   ├── AnalysisResults.jsx
+│   │   │   │   └── UploadPage.jsx
+│   │   │   └── workflows/
+│   │   │       └── WorkflowVisualizationPage.jsx
+│   │   ├── routes/
+│   │   │   └── ProtectedRoute.jsx
+│   │   ├── services/
+│   │   │   └── api.js
+│   │   ├── utils/
+│   │   │   ├── api-utils.js
+│   │   │   ├── formatting.js
+│   │   │   └── validation.js
+│   │   ├── App.jsx
+│   │   ├── index.css
+│   │   └── main.jsx
+│   ├── .env.example
+│   ├── .gitignore
+│   ├── eslint.config.js
+│   ├── index.html
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── REFACTORING_REPORT.md
+│   └── vite.config.js
+├── generated-output/
+│   ├── architecture.md
+│   ├── architecture.txt
+│   ├── dependencies.txt
+│   ├── project-health.md
+│   ├── services.txt
+│   └── structure.txt
+├── ml-service/
+│   ├── edge_case_engine/
+│   │   ├── generator.py
+│   │   └── rules.py
+│   ├── output/
+│   │   ├── edge_cases.json
+│   │   ├── generated_tests.json
+│   │   ├── generated_tests.py
+│   │   └── risk_scores.json
+│   └── test_generation/
+│       ├── generator.py
+│       ├── templates.py
+│       └── utils.py
+├── orchestrator/
+│   ├── __init__.py
+│   └── pipeline.py
+├── parser-engine/
+│   ├── output/
+│   │   └── parsed_output.json
+│   ├── parsers/
+│   │   ├── __init__.py
+│   │   ├── cpp_parser.py
+│   │   ├── java_parser.py
+│   │   ├── js_ts_parser.py
+│   │   ├── python_adapter.py
+│   │   └── python_parser.py
+│   ├── sample_code/
+│   │   └── sample.py
+│   ├── __init__.py
+│   ├── dispatcher.py
+│   ├── main.py
+│   └── requirements.txt
+├── report-generator/
+│   ├── __init__.py
+│   └── builder.py
+├── repository-scanner/
+│   ├── __init__.py
+│   ├── git_cloner.py
+│   ├── language_detector.py
+│   └── scanner.py
+├── risk-analysis/
+│   ├── __init__.py
+│   └── analyzer.py
+├── risk-analysis-service/
+│   ├── output/
+│   │   └── risk_scores.json
+│   ├── analyzer.py
+│   ├── main.py
+│   └── utils.py
+├── shared/
+│   ├── config/
+│   │   ├── __init__.py
+│   │   └── settings.py
+│   ├── schemas/
+│   │   ├── __init__.py
+│   │   └── models.py
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   ├── file_io.py
+│   │   └── logger.py
+│   └── __init__.py
+├── test-execution/
+│   ├── __init__.py
+│   ├── runner.py
+│   └── test_writer.py
+├── test-generation/
+│   ├── generators/
+│   │   ├── __init__.py
+│   │   ├── jest_generator.py
+│   │   ├── junit_generator.py
+│   │   └── pytest_generator.py
+│   ├── __init__.py
+│   └── dispatcher.py
+├── .env.example
+├── .gitignore
+├── api.py
+├── bootstrap.py
+├── docker-compose.yml
+├── Dockerfile
+├── README.md
+└── requirements.txt
+
+## Folder Roles
+
+- .github/java-upgrade/hooks/  [hooks] - React hooks directory (2 files)
+- .github/java-upgrade/hooks/scripts/  [scripts] - Scripts/tooling directory (2 files)
+- backend/api-gateway/  [api] - API layer directory (10 files)
+- backend/api-gateway/src/  [source] - Source code directory (3 files)
+- backend/api-gateway/src/main/resources/  [assets] - Static assets directory (1 files)
+- backend/api-gateway/src/test/  [test] - Test directory (1 files)
+- backend/auth-service/src/  [source] - Source code directory (20 files)
+- backend/auth-service/src/main/java/com/microservices/auth_service/config/  [configuration] - Configuration directory (1 files)
+- backend/auth-service/src/main/java/com/microservices/auth_service/service/  [services] - Services/business logic directory (2 files)
+- backend/auth-service/src/main/resources/  [assets] - Static assets directory (2 files)
+- backend/auth-service/src/test/  [test] - Test directory (2 files)
+- backend/auth-service/src/test/resources/  [assets] - Static assets directory (1 files)
+- backend/config-repo/  [configuration] - Configuration directory (5 files)
+- backend/config-server/  [configuration] - Configuration directory (9 files)
+- backend/config-server/src/  [source] - Source code directory (3 files)
+- backend/config-server/src/main/resources/  [assets] - Static assets directory (1 files)
+- backend/config-server/src/test/  [test] - Test directory (1 files)
+- backend/eureka-server/src/  [source] - Source code directory (3 files)
+- backend/eureka-server/src/main/resources/  [assets] - Static assets directory (1 files)
+- backend/eureka-server/src/test/  [test] - Test directory (1 files)
+- backend/repo-analysis-service/src/  [source] - Source code directory (13 files)
+- backend/repo-analysis-service/src/main/java/com/microservices/repo_analysis_service/service/  [services] - Services/business logic directory (2 files)
+- backend/repo-analysis-service/src/main/resources/  [assets] - Static assets directory (2 files)
+- backend/repo-analysis-service/src/test/  [test] - Test directory (1 files)
+- backend/user-service/src/  [source] - Source code directory (17 files)
+- backend/user-service/src/main/java/com/microservices/user_service/service/  [services] - Services/business logic directory (1 files)
+- backend/user-service/src/main/resources/  [assets] - Static assets directory (2 files)
+- backend/user-service/src/test/  [test] - Test directory (2 files)
+- backend/user-service/src/test/resources/  [assets] - Static assets directory (1 files)
+- docs/  [documentation] - Documentation directory (1 files)
+- frontend/public/  [assets] - Static assets directory (2 files)
+- frontend/src/  [source] - Source code directory (63 files)
+- frontend/src/assets/  [assets] - Static assets directory (3 files)
+- frontend/src/components/  [components] - UI components directory (18 files)
+- frontend/src/components/ui/  [components] - UI components directory (6 files)
+- frontend/src/constants/  [constants] - Constants directory (2 files)
+- frontend/src/hooks/  [hooks] - React hooks directory (4 files)
+- frontend/src/lib/  [source] - Source code directory (1 files)
+- frontend/src/pages/  [views] - Views/pages directory (23 files)
+- frontend/src/routes/  [routing] - Routing directory (1 files)
+- frontend/src/services/  [services] - Services/business logic directory (1 files)
+- frontend/src/utils/  [utilities] - Utility functions directory (3 files)
+- generated-output/  [generated] - Generated output directory (6 files)
+- shared/config/  [configuration] - Configuration directory (2 files)
+- shared/schemas/  [models] - Data models directory (2 files)
+- shared/utils/  [utilities] - Utility functions directory (3 files)
+- test-execution/  [test] - Test directory (3 files)
+- test-generation/  [test] - Test directory (6 files)
