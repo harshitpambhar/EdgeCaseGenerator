@@ -1,31 +1,34 @@
 """
-Shared configuration — reads from environment variables with safe defaults.
-All services import from here; no service hardcodes config values.
+Shared configuration settings for all services.
+Loads from environment variables with sensible defaults.
 """
 import os
+import tempfile
 from pathlib import Path
 
-# ── Workspace ────────────────────────────────────────────────────────────────
-TEMP_WORKSPACE_ROOT: Path = Path(
-    os.getenv("TEMP_WORKSPACE_ROOT", "/tmp/ecg_workspaces")
-)
+# Workspace & Temp Directory
+# Use system temp directory as default (cross-platform compatible)
+_default_temp = Path(tempfile.gettempdir()) / "ecg_workspaces"
+TEMP_WORKSPACE_ROOT = Path(os.getenv("TEMP_WORKSPACE_ROOT", str(_default_temp)))
 
-# ── Repository scanner ────────────────────────────────────────────────────────
-IGNORED_DIRS: frozenset[str] = frozenset(
-    os.getenv(
-        "IGNORED_DIRS",
-        "node_modules,venv,.venv,build,dist,.git,target,__pycache__,.pytest_cache",
-    ).split(",")
-)
+# Execution Timeouts
+TEST_EXECUTION_TIMEOUT = int(os.getenv("TEST_EXECUTION_TIMEOUT", "120"))  # seconds
+GIT_TIMEOUT = int(os.getenv("GIT_TIMEOUT", "300"))  # seconds
 
-MAX_FILE_SIZE_BYTES: int = int(os.getenv("MAX_FILE_SIZE_BYTES", str(1 * 1024 * 1024)))  # 1 MB
+# Git Configuration
+GIT_CLONE_DEPTH = int(os.getenv("GIT_CLONE_DEPTH", "1"))
 
-# ── Test execution ────────────────────────────────────────────────────────────
-TEST_EXECUTION_TIMEOUT: int = int(os.getenv("TEST_EXECUTION_TIMEOUT", "120"))
+# File Size Limits
+MAX_FILE_SIZE_BYTES = int(os.getenv("MAX_FILE_SIZE_BYTES", "1048576"))  # 1MB
 
-# ── Git ───────────────────────────────────────────────────────────────────────
-GIT_CLONE_DEPTH: int = int(os.getenv("GIT_CLONE_DEPTH", "1"))
-GIT_TIMEOUT: int = int(os.getenv("GIT_TIMEOUT", "120"))
+# Directories to Ignore During Scanning
+IGNORED_DIRS = [
+    ".git", ".svn", ".hg",
+    "node_modules", "__pycache__", ".pytest_cache", ".venv", "venv", "env",
+    ".idea", ".vscode", ".DS_Store",
+    "dist", "build", "*.egg-info",
+    "target", "out", ".gradle",
+]
 
-# ── Logging ───────────────────────────────────────────────────────────────────
-LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+# Logging
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
