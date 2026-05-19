@@ -24,6 +24,7 @@ public class AuthConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/auth/signup",
+                                "/api/auth/register",
                                 "/api/auth/login",
                                 "/api/auth/validate",
                                 "/actuator/**",

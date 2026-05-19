@@ -66,7 +66,7 @@ api.interceptors.response.use(
 
 export const authService = {
   login: (credentials) => api.post('/auth/login', credentials),
-  signup: (userData) => api.post('/auth/register', userData),
+  signup: (userData) => api.post('/auth/signup', userData),
   getCurrentUser: () => api.get('/auth/me'),
 };
 
