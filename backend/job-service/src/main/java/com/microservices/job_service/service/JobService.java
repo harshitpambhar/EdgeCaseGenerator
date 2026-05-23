@@ -38,7 +38,9 @@ public class JobService {
         log.info("Job created: id={} repoUrl={}", job.getId(), job.getRepoUrl());
 
         // Invoke through the Spring proxy so @Async is honoured
-        self().launchWorkerAsync(job.getId());
+        // Pass the saved Job entity directly to avoid async visibility race
+        // (async thread runs before the creating transaction may be visible to other transactions)
+        self().launchWorkerAsync(job);
 
         return JobResponse.from(job);
     }
@@ -66,20 +68,24 @@ public class JobService {
     // -------------------------------------------------------------------------
     // Async worker execution — must be called via proxy (self()) to honour @Async
     // -------------------------------------------------------------------------
-
+    // NOTE: No @Transactional here! Each status transition is its own transaction.
+    // This is critical: it allows the frontend polling to see RUNNING status
+    // while the Docker container is still executing.
     @Async
-    public void launchWorkerAsync(UUID jobId) {
-        Job job = jobRepository.findById(jobId).orElse(null);
-        if (job == null) {
-            log.error("launchWorkerAsync: job {} not found", jobId);
+    public void launchWorkerAsync(Job job) {
+        if (job == null || job.getId() == null) {
+            log.error("launchWorkerAsync: invalid job provided: {}", job);
             return;
         }
 
+        log.info("launchWorkerAsync: starting async worker for job id={}", job.getId());
+
+        // Persist RUNNING state in its own transaction — immediately visible to frontend
         markRunning(job);
 
         try {
-            DockerWorkerService.WorkerResult result =
-                    dockerWorkerService.runWorker(job.getRepoUrl(), jobId.toString());
+            DockerWorkerService.WorkerResult result
+                    = dockerWorkerService.runWorker(job.getRepoUrl(), job.getId().toString());
 
             if (result.succeeded()) {
                 markCompleted(job, result.containerId(), result.logs());
@@ -88,37 +94,51 @@ public class JobService {
                         "Container exited with code " + result.exitCode() + "\n" + result.logs());
             }
         } catch (Exception ex) {
-            log.error("Worker failed for job {}: {}", jobId, ex.getMessage(), ex);
+            log.error("Worker failed for job {}: {}", job.getId(), ex.getMessage(), ex);
             markFailed(job, null, ex.getMessage());
         }
     }
 
     // -------------------------------------------------------------------------
-    // Status transitions
+    // Status transitions — each is a separate transaction so status changes
+    // are immediately visible to frontend polling.
     // -------------------------------------------------------------------------
-
-    private void markRunning(Job job) {
-        job.setStatus(JobStatus.RUNNING);
-        jobRepository.save(job);
-        log.info("Job {} → RUNNING", job.getId());
+    @Transactional
+    public void markRunning(Job job) {
+        // Re-fetch from DB to get a managed entity in this transaction
+        Job managed = jobRepository.findById(job.getId()).orElse(job);
+        managed.setStatus(JobStatus.RUNNING);
+        managed.setStartedAt(Instant.now());
+        managed.setContainerStatus("STARTING");
+        jobRepository.save(managed);
+        log.info("Job {} → RUNNING", managed.getId());
     }
 
-    private void markCompleted(Job job, String containerId, String logs) {
-        job.setStatus(JobStatus.COMPLETED);
-        job.setContainerId(containerId);
-        job.setResultJson(buildResultJson(logs));
-        job.setCompletedAt(Instant.now());
-        jobRepository.save(job);
-        log.info("Job {} → COMPLETED", job.getId());
+    @Transactional
+    public void markCompleted(Job job, String containerId, String logs) {
+        Job managed = jobRepository.findById(job.getId()).orElse(job);
+        managed.setStatus(JobStatus.COMPLETED);
+        managed.setContainerId(containerId);
+        managed.setContainerStatus("EXITED");
+        managed.setLogs(logs);
+        managed.setResultJson(buildResultJson(logs));
+        managed.setCompletedAt(Instant.now());
+        jobRepository.save(managed);
+        log.info("Job {} → COMPLETED (container={})", managed.getId(), containerId);
     }
 
-    private void markFailed(Job job, String containerId, String errorMessage) {
-        job.setStatus(JobStatus.FAILED);
-        if (containerId != null) job.setContainerId(containerId);
-        job.setErrorMessage(errorMessage);
-        job.setCompletedAt(Instant.now());
-        jobRepository.save(job);
-        log.warn("Job {} → FAILED: {}", job.getId(), errorMessage);
+    @Transactional
+    public void markFailed(Job job, String containerId, String errorMessage) {
+        Job managed = jobRepository.findById(job.getId()).orElse(job);
+        managed.setStatus(JobStatus.FAILED);
+        if (containerId != null) {
+            managed.setContainerId(containerId);
+        }
+        managed.setContainerStatus("FAILED");
+        managed.setErrorMessage(errorMessage);
+        managed.setCompletedAt(Instant.now());
+        jobRepository.save(managed);
+        log.warn("Job {} → FAILED: {}", managed.getId(), errorMessage);
     }
 
     private Job findOrThrow(UUID id) {
@@ -126,7 +146,9 @@ public class JobService {
                 .orElseThrow(() -> new JobNotFoundException("Job not found: " + id));
     }
 
-    /** Returns the Spring-proxied instance of this bean so @Async is applied. */
+    /**
+     * Returns the Spring-proxied instance of this bean so @Async is applied.
+     */
     private JobService self() {
         return applicationContext.getBean(JobService.class);
     }

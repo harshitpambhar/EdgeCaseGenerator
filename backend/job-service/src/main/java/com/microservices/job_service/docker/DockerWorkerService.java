@@ -2,8 +2,8 @@ package com.microservices.job_service.docker;
 
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
+import com.github.dockerjava.api.command.PullImageResultCallback;
 import com.github.dockerjava.api.command.WaitContainerResultCallback;
-import com.github.dockerjava.api.model.Bind;
 import com.github.dockerjava.api.model.HostConfig;
 import com.microservices.job_service.config.DockerWorkerProperties;
 import com.microservices.job_service.exception.DockerOperationException;
@@ -38,19 +38,30 @@ public class DockerWorkerService {
      * @return WorkerResult containing exit code and captured logs
      */
     public WorkerResult runWorker(String repoUrl, String jobId) {
-        log.info("[job={}] Launching worker container for repo: {}", jobId, repoUrl);
+        log.info("STEP 1 — [job={}] Async worker started for repo: {}", jobId, repoUrl);
 
+        // STEP 2: Pull image if not present locally
+        pullImageIfMissing(jobId);
+
+        // STEP 3: Create container
         String containerId = createContainer(repoUrl, jobId);
-        log.info("[job={}] Container created: {}", jobId, containerId);
+        log.info("STEP 3 — [job={}] Container created: {}", jobId, containerId);
 
         try {
+            // STEP 4: Start container
             dockerClient.startContainerCmd(containerId).exec();
-            log.info("[job={}] Container started", jobId);
+            log.info("STEP 4 — [job={}] Container started: {}", jobId, containerId);
 
+            // STEP 5: Wait for container to finish
+            log.info("STEP 5 — [job={}] Waiting for container to finish (timeout={}s)...", jobId, props.getTimeoutSeconds());
             int exitCode = waitForContainer(containerId, jobId);
-            String logs = collectLogs(containerId, jobId);
 
-            log.info("[job={}] Container finished with exit code {}", jobId, exitCode);
+            // STEP 6: Collect logs
+            String logs = collectLogs(containerId, jobId);
+            log.info("STEP 6 — [job={}] Logs collected ({} chars)", jobId, logs.length());
+
+            // STEP 7: Done
+            log.info("STEP 7 — [job={}] Container completed with exit code {}", jobId, exitCode);
             return new WorkerResult(containerId, exitCode, logs);
 
         } catch (Exception ex) {
@@ -65,20 +76,52 @@ public class DockerWorkerService {
     // Private helpers
     // -------------------------------------------------------------------------
 
+    /**
+     * Pulls the worker Docker image if it is not available locally.
+     * This prevents createContainerCmd from failing with "image not found".
+     */
+    private void pullImageIfMissing(String jobId) {
+        String image = props.getImage();
+        log.info("STEP 2 — [job={}] Checking/pulling image: {}", jobId, image);
+
+        try {
+            // Check if image exists locally first
+            try {
+                dockerClient.inspectImageCmd(image).exec();
+                log.info("STEP 2 — [job={}] Image already present locally: {}", jobId, image);
+                return;
+            } catch (com.github.dockerjava.api.exception.NotFoundException e) {
+                log.info("STEP 2 — [job={}] Image not found locally, pulling: {}", jobId, image);
+            }
+
+            // Pull the image
+            dockerClient.pullImageCmd(image)
+                    .exec(new PullImageResultCallback())
+                    .awaitCompletion(120, TimeUnit.SECONDS);
+
+            log.info("STEP 2 — [job={}] Image pulled successfully: {}", jobId, image);
+
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new DockerOperationException("Image pull interrupted for " + image, ex);
+        } catch (com.github.dockerjava.api.exception.NotFoundException ex) {
+            throw new DockerOperationException("Image not found: " + image, ex);
+        } catch (Exception ex) {
+            throw new DockerOperationException("Failed to pull image " + image + ": " + ex.getMessage(), ex);
+        }
+    }
+
     private String createContainer(String repoUrl, String jobId) {
         /*
-         * The worker command:
-         *   sh -c "git clone <repoUrl> /workspace/repo && find /workspace/repo -type f | head -100"
+         * STEP 1 verification command:
+         *   sh -c "echo 'Docker working' && sleep 5"
          *
-         * This runs entirely inside the container.
-         * /workspace is a tmpfs-style directory that exists only for the container's lifetime.
+         * This proves real container creation, lifecycle tracking, and log capture.
+         * Once verified, this will be replaced with the actual repo-cloning command.
          */
         List<String> cmd = List.of(
                 "sh", "-c",
-                "git clone --depth 1 " + repoUrl + " /workspace/repo 2>&1 && "
-                + "echo '=== SCAN START ===' && "
-                + "find /workspace/repo -type f -not -path '*/.git/*' | head -200 && "
-                + "echo '=== SCAN END ==='"
+                "echo 'Docker working' && sleep 5"
         );
 
         HostConfig hostConfig = HostConfig.newHostConfig()

@@ -62,7 +62,7 @@ management:
 
 docker:
   worker:
-    image: ${DOCKER_WORKER_IMAGE:alpine/git:latest}
+    image: ${DOCKER_WORKER_IMAGE:alpine:latest}
     network: ${DOCKER_WORKER_NETWORK:bridge}
     timeout-seconds: ${DOCKER_WORKER_TIMEOUT:300}
     auto-remove: true

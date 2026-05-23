@@ -53,6 +53,15 @@ public class Job {
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
 
+    @Column(name = "container_status", length = 30)
+    private String containerStatus;
+
+    @Column(name = "started_at")
+    private Instant startedAt;
+
+    @Column(name = "logs", columnDefinition = "TEXT")
+    private String logs;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

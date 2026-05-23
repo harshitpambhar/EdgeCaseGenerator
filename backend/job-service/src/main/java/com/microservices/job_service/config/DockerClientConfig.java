@@ -17,6 +17,7 @@ public class DockerClientConfig {
     public DockerClient dockerClient() {
         DefaultDockerClientConfig config = DefaultDockerClientConfig
                 .createDefaultConfigBuilder()
+                .withDockerHost("tcp://localhost:2375")
                 .build();
 
         DockerHttpClient httpClient = new ApacheDockerHttpClient.Builder()

@@ -11,8 +11,8 @@ import org.springframework.stereotype.Component;
 @Setter
 public class DockerWorkerProperties {
 
-    /** Docker image used for the worker container (default: alpine/git) */
-    private String image = "alpine/git:latest";
+    /** Docker image used for the worker container (default: alpine) */
+    private String image = "alpine:latest";
 
     /** Docker network the worker container joins */
     private String network = "bridge";
