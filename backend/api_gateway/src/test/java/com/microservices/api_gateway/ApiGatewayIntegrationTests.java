@@ -3,7 +3,6 @@ package com.microservices.api_gateway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.cloud.contract.wiremock.AutoConfigureWireMock;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 /**
@@ -11,7 +10,6 @@ import org.springframework.test.web.reactive.server.WebTestClient;
  * error handling
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@AutoConfigureWireMock(port = 8888)
 class ApiGatewayIntegrationTests {
 
     @Autowired

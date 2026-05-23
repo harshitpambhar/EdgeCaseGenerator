@@ -12,45 +12,47 @@ spring:
       timeout: 3000ms
   cloud:
     gateway:
+      server:
+        webflux:
+          routes:
+            - id: auth-service
+              uri: lb://auth-service
+              predicates:
+                - Path=/api/auth/**
+              filters:
+                - name: RequestIdFilter
+                - name: LoggingFilter
+            - id: user-service
+              uri: lb://user-service
+              predicates:
+                - Path=/api/users/**
+              filters:
+                - name: RequestIdFilter
+                - name: LoggingFilter
+                - name: JwtAuthenticationFilter
+                - name: RateLimitingFilter
+            - id: job-service
+              uri: lb://job-service
+              predicates:
+                - Path=/api/jobs/**
+              filters:
+                - name: RequestIdFilter
+                - name: LoggingFilter
+                - name: JwtAuthenticationFilter
+                - name: RateLimitingFilter
+            - id: project-service
+              uri: lb://project-service
+              predicates:
+                - Path=/api/projects/**
+              filters:
+                - name: RequestIdFilter
+                - name: LoggingFilter
+                - name: JwtAuthenticationFilter
+                - name: RateLimitingFilter
       discovery:
         locator:
           enabled: true
           lower-case-service-id: true
-      routes:
-        - id: auth-service
-          uri: lb://auth-service
-          predicates:
-            - Path=/api/auth/**
-          filters:
-            - name: RequestId
-            - name: Logging
-        - id: user-service
-          uri: lb://user-service
-          predicates:
-            - Path=/api/users/**
-          filters:
-            - name: RequestId
-            - name: Logging
-            - name: JwtAuthentication
-            - name: RateLimiting
-        - id: job-service
-          uri: lb://job-service
-          predicates:
-            - Path=/api/jobs/**
-          filters:
-            - name: RequestId
-            - name: Logging
-            - name: JwtAuthentication
-            - name: RateLimiting
-        - id: project-service
-          uri: lb://project-service
-          predicates:
-            - Path=/api/projects/**
-          filters:
-            - name: RequestId
-            - name: Logging
-            - name: JwtAuthentication
-            - name: RateLimiting
 
 server:
   port: 8080
