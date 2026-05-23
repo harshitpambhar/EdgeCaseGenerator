@@ -23,7 +23,6 @@ import reactor.core.publisher.Mono;
 @Component
 public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAuthenticationFilter.Config> {
 
-    private static final String BEARER_PREFIX = "Bearer ";
     private static final String USER_ID_HEADER = "X-User-Id";
     private static final String USER_EMAIL_HEADER = "X-User-Email";
     private static final String USER_ROLE_HEADER = "X-User-Role";
@@ -70,21 +69,21 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
 
                 // Extract claims
                 Claims claims = jwtUtils.validateToken(token);
-                String userId = claims.getSubject();
-                String email = claims.get("email", String.class);
+                String email = claims.getSubject();
+                Object uidClaim = claims.get("uid");
+                String userId = uidClaim != null ? String.valueOf(uidClaim) : email;
                 String role = claims.get("role", String.class);
 
                 log.debug("JWT validation successful for user: {} with role: {}", userId, role);
 
-                // Add user information to request headers
-                exchange.getRequest().mutate()
+                // Add user information to request headers and continue with the mutated exchange
+                var mutatedRequest = exchange.getRequest().mutate()
                         .header(USER_ID_HEADER, userId)
                         .header(USER_EMAIL_HEADER, email != null ? email : "")
                         .header(USER_ROLE_HEADER, role != null ? role : "")
                         .build();
 
-                // Continue with the request
-                return chain.filter(exchange);
+                return chain.filter(exchange.mutate().request(mutatedRequest).build());
 
             } catch (Exception e) {
                 log.error("JWT authentication error: {}", e.getMessage());

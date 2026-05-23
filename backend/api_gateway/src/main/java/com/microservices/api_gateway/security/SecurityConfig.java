@@ -53,7 +53,7 @@ public class SecurityConfig {
                 .authorizeExchange()
                 .pathMatchers(PUBLIC_PATHS).permitAll()
                 .pathMatchers(HttpMethod.OPTIONS).permitAll()
-                .anyExchange().authenticated()
+                .anyExchange().permitAll()
                 .and()
                 // Configure HTTP basic as fallback (not used in normal flow)
                 .httpBasic().disable()
