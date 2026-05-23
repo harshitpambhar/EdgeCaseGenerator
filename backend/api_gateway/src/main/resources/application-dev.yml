@@ -1,0 +1,102 @@
+# Development Configuration for API Gateway
+spring:
+  application:
+    name: api-gateway
+  main:
+    web-application-type: reactive
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      timeout: 3000ms
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - name: RequestId
+            - name: Logging
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - name: RequestId
+            - name: Logging
+            - name: JwtAuthentication
+            - name: RateLimiting
+        - id: job-service
+          uri: lb://job-service
+          predicates:
+            - Path=/api/jobs/**
+          filters:
+            - name: RequestId
+            - name: Logging
+            - name: JwtAuthentication
+            - name: RateLimiting
+        - id: project-service
+          uri: lb://project-service
+          predicates:
+            - Path=/api/projects/**
+          filters:
+            - name: RequestId
+            - name: Logging
+            - name: JwtAuthentication
+            - name: RateLimiting
+
+server:
+  port: 8080
+  shutdown: graceful
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${random.int[10000,99999]}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus,gateway
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+jwt:
+  secret: dev-secret-key-12345678901234567890
+  expiration: 86400
+  validation-url: http://auth-service:8080/api/auth/validate
+
+rate-limit:
+  enabled: true
+  per-user-limit: 1000
+  per-ip-limit: 10000
+  window-duration-minutes: 1
+
+logging:
+  level:
+    root: INFO
+    com.microservices: DEBUG
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.security: DEBUG
+  pattern:
+    console: "[%d{yyyy-MM-dd HH:mm:ss}] [%thread] [%X{requestId}] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/api-gateway.log

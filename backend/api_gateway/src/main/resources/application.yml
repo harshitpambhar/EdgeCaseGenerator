@@ -5,6 +5,14 @@ spring:
     import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
   main:
     web-application-type: reactive
+  webflux:
+    base-path: /
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3000ms
   cloud:
     gateway:
       discovery:
@@ -12,24 +20,52 @@ spring:
           enabled: true
           lower-case-service-id: true
       routes:
+        # Auth Service
         - id: auth-service
           uri: lb://auth-service
           predicates:
             - Path=/api/auth/**
+          filters:
+            - name: RequestId
+            - name: Logging
+        # User Service
         - id: user-service
           uri: lb://user-service
           predicates:
             - Path=/api/users/**
-        - id: repo-analysis-service
-          uri: lb://repo-analysis-service
+          filters:
+            - name: RequestId
+            - name: Logging
+            - name: JwtAuthentication
+            - name: RateLimiting
+        # Job Service
+        - id: job-service
+          uri: lb://job-service
           predicates:
-            - Path=/api/repo/**
+            - Path=/api/jobs/**
+          filters:
+            - name: RequestId
+            - name: Logging
+            - name: JwtAuthentication
+            - name: RateLimiting
+        # Project Service
+        - id: project-service
+          uri: lb://project-service
+          predicates:
+            - Path=/api/projects/**
+          filters:
+            - name: RequestId
+            - name: Logging
+            - name: JwtAuthentication
+            - name: RateLimiting
       globalcors:
         add-to-simple-url-handler-mapping: true
         cors-configurations:
           '[/**]':
             allowedOrigins:
               - "http://localhost:5173"
+              - "http://localhost:3000"
+              - "http://localhost:8080"
             allowedMethods:
               - GET
               - POST
@@ -37,17 +73,31 @@ spring:
               - DELETE
               - PATCH
               - OPTIONS
+              - HEAD
             allowedHeaders:
               - "Authorization"
               - "Content-Type"
               - "Accept"
+              - "X-Requested-With"
+              - "X-Request-Id"
             exposedHeaders:
               - "Authorization"
+              - "X-Request-Id"
+              - "X-RateLimit-Remaining"
+              - "X-RateLimit-Retry-After"
             allowCredentials: false
             maxAge: 3600
+      httpclient:
+        ssl:
+          useInsecureTrustManager: false
+      httpserver:
+        wiretap: false
 
 server:
   port: ${API_GATEWAY_PORT:8080}
+  shutdown: graceful
+  netty:
+    connection-timeout: 5000ms
 
 eureka:
   client:
@@ -57,9 +107,55 @@ eureka:
     fetch-registry: ${EUREKA_CLIENT_ENABLED:true}
   instance:
     prefer-ip-address: true
+    instance-id: ${spring.application.name}:${random.int[10000,99999]}
 
 management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus,gateway
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
   tracing:
     export:
       zipkin:
         enabled: ${ZIPKIN_EXPORT_ENABLED:false}
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:your-secret-key-change-in-production-very-important}
+  expiration: ${JWT_EXPIRATION:86400}
+  validation-url: ${JWT_VALIDATION_URL:http://auth-service/api/auth/validate}
+
+# Rate Limiting Configuration
+rate-limit:
+  enabled: ${RATE_LIMIT_ENABLED:true}
+  per-user-limit: ${RATE_LIMIT_PER_USER:1000}
+  per-ip-limit: ${RATE_LIMIT_PER_IP:10000}
+  window-duration-minutes: ${RATE_LIMIT_WINDOW:1}
+
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+    com.microservices: DEBUG
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.security: DEBUG
+  pattern:
+    console: "[%d{yyyy-MM-dd HH:mm:ss}] [%thread] [%X{requestId}] %-5level %logger{36} - %msg%n"
+    file: "[%d{yyyy-MM-dd HH:mm:ss}] [%thread] [%X{requestId}] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/api-gateway.log
+    max-size: 10MB
+    max-history: 10

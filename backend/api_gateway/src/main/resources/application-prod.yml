@@ -1,0 +1,131 @@
+# Production Configuration for API Gateway
+spring:
+  application:
+    name: api-gateway
+  main:
+    web-application-type: reactive
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD}
+      timeout: 5000ms
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - name: RequestId
+            - name: Logging
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - name: RequestId
+            - name: Logging
+            - name: JwtAuthentication
+            - name: RateLimiting
+        - id: job-service
+          uri: lb://job-service
+          predicates:
+            - Path=/api/jobs/**
+          filters:
+            - name: RequestId
+            - name: Logging
+            - name: JwtAuthentication
+            - name: RateLimiting
+        - id: project-service
+          uri: lb://project-service
+          predicates:
+            - Path=/api/projects/**
+          filters:
+            - name: RequestId
+            - name: Logging
+            - name: JwtAuthentication
+            - name: RateLimiting
+      httpclient:
+        ssl:
+          useInsecureTrustManager: false
+
+server:
+  port: ${API_GATEWAY_PORT}
+  shutdown: graceful
+  netty:
+    connection-timeout: 10000ms
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_DEFAULT_ZONE}
+    register-with-eureka: true
+    fetch-registry: true
+    enabled: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${INSTANCE_ID:${random.int[10000,99999]}}
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus,gateway
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
+    diskspace:
+      enabled: true
+    redis:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+  tracing:
+    export:
+      zipkin:
+        enabled: ${ZIPKIN_EXPORT_ENABLED:false}
+        endpoint: ${ZIPKIN_ENDPOINT:http://zipkin:9411/api/v2/spans}
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION}
+  validation-url: ${JWT_VALIDATION_URL}
+
+rate-limit:
+  enabled: ${RATE_LIMIT_ENABLED}
+  per-user-limit: ${RATE_LIMIT_PER_USER}
+  per-ip-limit: ${RATE_LIMIT_PER_IP}
+  window-duration-minutes: ${RATE_LIMIT_WINDOW}
+
+logging:
+  level:
+    root: ${LOG_LEVEL:WARN}
+    com.microservices: INFO
+    org.springframework.cloud.gateway: INFO
+    org.springframework.security: WARN
+  pattern:
+    console: "[%d{yyyy-MM-dd HH:mm:ss}] [%thread] [%X{requestId}] %-5level %logger{36} - %msg%n"
+    file: "[%d{yyyy-MM-dd HH:mm:ss}] [%thread] [%X{requestId}] %-5level %logger{36} - %msg%n"
+  file:
+    name: /var/log/api-gateway/api-gateway.log
+    max-size: 50MB
+    max-history: 30
+    total-size-cap: 5GB
