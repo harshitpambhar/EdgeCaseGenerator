@@ -100,6 +100,14 @@ export const executionService = {
   getLogs: (executionId) => api.get(`/executions/${executionId}/logs`),
 };
 
+// Job Service — talks to Spring Boot job-service via API Gateway
+export const jobService = {
+  create: (repoUrl) => api.post('/jobs', { repoUrl }),
+  getById: (id) => api.get(`/jobs/${id}`),
+  getAll: () => api.get('/jobs'),
+  remove: (id) => api.delete(`/jobs/${id}`),
+};
+
 export const reportService = {
   getAll: () => api.get('/reports'),
   getById: (id) => api.get(`/reports/${id}`),

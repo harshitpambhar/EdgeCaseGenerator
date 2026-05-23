@@ -1,7 +1,11 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import { Download, ArrowRight } from 'lucide-react';
-import { HiOutlineDocumentText, HiOutlineCode, HiOutlineDownload, HiOutlineEye } from 'react-icons/hi';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Download, ArrowRight, ExternalLink } from 'lucide-react';
+import { HiOutlineDocumentText, HiOutlineCode, HiOutlineDownload, HiOutlineEye, HiOutlineClock } from 'react-icons/hi';
+import { jobService, getErrorMessage } from '../../services/api';
+import { formatRelativeTime, formatDateTime } from '../../utils/formatting';
+import { COLOR_BY_STATUS } from '../../constants/status_values';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip,
   BarChart, Bar, PieChart, Pie, Cell,
@@ -44,6 +48,11 @@ const riskStyle = {
   Low: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
 };
 
+const normalizeStatus = (s) => {
+  const map = { QUEUED: 'Queued', RUNNING: 'Running', COMPLETED: 'Completed', FAILED: 'Failed' };
+  return map[s] ?? s;
+};
+
 const ChartTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
@@ -55,6 +64,20 @@ const ChartTooltip = ({ active, payload, label }) => {
 };
 
 export default function ReportsDashboardPage() {
+  const [searchParams] = useSearchParams();
+  const highlightJobId = searchParams.get('jobId');
+
+  const [jobs, setJobs] = useState([]);
+  const [jobsLoading, setJobsLoading] = useState(true);
+  const [jobsError, setJobsError] = useState(null);
+
+  useEffect(() => {
+    jobService.getAll()
+      .then(({ data }) => setJobs(Array.isArray(data) ? data.filter(j => j.status === 'COMPLETED' || j.status === 'FAILED') : []))
+      .catch(err => setJobsError(getErrorMessage(err)))
+      .finally(() => setJobsLoading(false));
+  }, []);
+
   return (
     <div className="space-y-5 pb-8">
       <div className="flex items-center justify-between">
@@ -125,6 +148,71 @@ export default function ReportsDashboardPage() {
           </ResponsiveContainer>
         </motion.div>
       </div>
+
+      {/* Job Service Results */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
+        className="rounded-xl bg-white/[0.03] border border-white/[0.06] overflow-hidden">
+        <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-white">Repository analysis jobs</p>
+            <p className="text-xs text-white/30 mt-0.5">Results from Job Service</p>
+          </div>
+          <Link to="/executions" className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors no-underline flex items-center gap-1">
+            All jobs <ArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
+
+        {jobsLoading ? (
+          <div className="px-5 py-8 text-center text-white/30 text-sm">Loading…</div>
+        ) : jobsError ? (
+          <div className="px-5 py-6 text-center text-rose-400 text-sm">{jobsError}</div>
+        ) : jobs.length === 0 ? (
+          <div className="px-5 py-8 text-center space-y-2">
+            <p className="text-white/30 text-sm">No completed jobs yet.</p>
+            <Link to="/upload" className="text-xs text-indigo-400 hover:text-indigo-300 no-underline transition-colors">Analyze a repository →</Link>
+          </div>
+        ) : (
+          <div className="divide-y divide-white/[0.04]">
+            {jobs.map((job) => {
+              const display = normalizeStatus(job.status);
+              const cls = COLOR_BY_STATUS[display] ?? 'text-white/40 bg-white/[0.04] border-white/[0.08]';
+              const isHighlighted = job.id === highlightJobId;
+              let parsedResult = null;
+              if (job.resultJson) { try { parsedResult = JSON.parse(job.resultJson); } catch { /* ignore */ } }
+              const fileCount = parsedResult?.logs
+                ? (parsedResult.logs.match(/\/workspace\/repo\//g) || []).length
+                : null;
+
+              return (
+                <div key={job.id} className={`px-5 py-4 hover:bg-white/[0.02] transition-colors ${
+                  isHighlighted ? 'bg-indigo-500/5' : ''
+                }`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-white/80 font-mono truncate">{job.repoUrl}</p>
+                      <div className="flex items-center gap-3 mt-1 text-xs text-white/30">
+                        <span className="flex items-center gap-1"><HiOutlineClock className="text-xs" />{formatRelativeTime(job.createdAt)}</span>
+                        {fileCount !== null && <span>{fileCount} files scanned</span>}
+                        <span className="font-mono text-white/15 truncate max-w-[120px]">{job.id.slice(0, 8)}…</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${cls}`}>{display}</span>
+                      <Link
+                        to={`/executions/${job.id}`}
+                        className="w-7 h-7 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] flex items-center justify-center text-white/30 hover:text-white transition-colors no-underline"
+                        title="View details"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </motion.div>
 
       {/* AI risk insights */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}

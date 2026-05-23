@@ -21,6 +21,7 @@ import RepositoryAnalysisPage from './pages/repository/RepositoryAnalysisPage';
 import ReportsDashboardPage from './pages/reports/ReportsDashboardPage';
 import TestCasesPage from './pages/testcases/TestCasesPage';
 import ExecutionPage from './pages/execution/ExecutionPage';
+import ExecutionDetailPage from './pages/execution/ExecutionDetailPage';
 import WorkflowVisualizationPage from './pages/workflows/WorkflowVisualizationPage';
 
 export default function App() {
@@ -68,7 +69,17 @@ export default function App() {
 
               <Route
                 path="/execution"
+                element={<Navigate to="/executions" replace />}
+              />
+
+              <Route
+                path="/executions"
                 element={<ProtectedRoute element={<ExecutionPage />} />}
+              />
+
+              <Route
+                path="/executions/:id"
+                element={<ProtectedRoute element={<ExecutionDetailPage />} />}
               />
 
               <Route
