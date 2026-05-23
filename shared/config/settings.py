@@ -3,13 +3,7 @@ Shared configuration settings for all services.
 Loads from environment variables with sensible defaults.
 """
 import os
-import tempfile
 from pathlib import Path
-
-# Workspace & Temp Directory
-# Use system temp directory as default (cross-platform compatible)
-_default_temp = Path(tempfile.gettempdir()) / "ecg_workspaces"
-TEMP_WORKSPACE_ROOT = Path(os.getenv("TEMP_WORKSPACE_ROOT", str(_default_temp)))
 
 # Execution Timeouts
 TEST_EXECUTION_TIMEOUT = int(os.getenv("TEST_EXECUTION_TIMEOUT", "120"))  # seconds

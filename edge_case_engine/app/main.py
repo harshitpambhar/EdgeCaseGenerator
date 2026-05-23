@@ -1,15 +1,13 @@
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 """
 Edge Case Engine - FastAPI application.
 
 Wraps existing edge case generator with HTTP routes.
 """
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from __future__ import annotations
 
 from shared.utils.fastapi_utils import create_app, add_health_routes
-from app.routes import router
+from .routes import router
 
 
 app = create_app(

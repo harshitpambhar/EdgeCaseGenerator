@@ -120,7 +120,6 @@ class ScanResult(TypedDict):
 
 class PipelineResponse(TypedDict):
     job_id: str
-    repository: str
     languages_detected: list[str]
     functions_detected: int
     generated_tests: list[GeneratedTest]

@@ -16,6 +16,8 @@ for _p in (str(_ROOT), str(_HERE)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from typing import Any
+
 from shared.schemas.models import EdgeCaseSchema, GeneratedTest
 from shared.utils.logger import get_logger
 
@@ -39,6 +41,99 @@ def _register_defaults() -> None:
 _register_defaults()
 
 
+def _function_priority(function_name: str, edge_cases: dict[str, Any]) -> tuple[str, int]:
+    conditions = list(edge_cases.keys()) if isinstance(edge_cases, dict) else []
+    total_cases = 0
+    if isinstance(edge_cases, dict):
+        for values in edge_cases.values():
+            if isinstance(values, list):
+                total_cases += len(values)
+            elif values is not None:
+                total_cases += 1
+    complexity_score = int(edge_cases.get("complexity_score", 0) or 0) if isinstance(edge_cases, dict) else 0
+
+    score = 0
+    if function_name and not function_name.startswith("_"):
+        score += 2
+    if total_cases >= 10:
+        score += 2
+    elif total_cases >= 4:
+        score += 1
+    if conditions:
+        score += min(3, len(conditions))
+    if complexity_score >= 5:
+        score += 2
+    elif complexity_score >= 3:
+        score += 1
+    if total_cases >= 6:
+        score += 2
+    elif total_cases >= 2:
+        score += 1
+
+    if score >= 7:
+        return "high", score
+    if score >= 3:
+        return "medium", score
+    return "low", score
+
+
+def _should_generate_tests(function_name: str, edge_case_entry: dict[str, Any]) -> bool:
+    if function_name.startswith("test_"):
+        log.info("Skipping existing test function: %s", function_name)
+        return False
+    if function_name.startswith("__"):
+        log.info("Skipping dunder function: %s", function_name)
+        return False
+    if function_name.startswith("_"):
+        log.info("Skipping wrapper/helper function: %s", function_name)
+        return False
+
+    total_cases = 0
+    for values in edge_case_entry.get("edge_cases", {}).values():
+        if isinstance(values, list):
+            total_cases += len(values)
+        elif values is not None:
+            total_cases += 1
+
+    priority, score = _function_priority(function_name, edge_case_entry)
+    if priority == "low" or total_cases == 0:
+        log.info("Skipping trivial function: %s (score=%d)", function_name, score)
+        return False
+
+    log.info("Generating tests for function: %s (priority=%s, score=%d)", function_name, priority, score)
+    return True
+
+
+def _max_cases_for_priority(priority: str) -> int:
+    if priority == "high":
+        return 6
+    if priority == "medium":
+        return 3
+    return 0
+
+
+def _trim_edge_case_entry(edge_case_entry: dict[str, Any], max_cases: int) -> dict[str, Any]:
+    if max_cases <= 0:
+        return {"name": edge_case_entry.get("name", ""), "edge_cases": {}}
+
+    trimmed: dict[str, list[Any]] = {}
+    remaining = max_cases
+    for condition, values in edge_case_entry.get("edge_cases", {}).items():
+        if remaining <= 0:
+            break
+        if not isinstance(values, list):
+            values = [values]
+        selected = values[:remaining]
+        if selected:
+            trimmed[condition] = selected
+            remaining -= len(selected)
+
+    return {
+        "name": edge_case_entry.get("name", ""),
+        "edge_cases": trimmed,
+    }
+
+
 def generate_tests(
     edge_cases: EdgeCaseSchema,
     language: str,
@@ -58,7 +153,26 @@ def generate_tests(
         framework, language, edge_cases["source_file"],
     )
     try:
-        return generator_fn(edge_cases, **kwargs)
+        filtered_functions = []
+        for fn_entry in edge_cases.get("functions", []):
+            function_name = fn_entry.get("name", "")
+            if not _should_generate_tests(function_name, fn_entry):
+                continue
+
+            priority, _ = _function_priority(function_name, fn_entry)
+            max_cases = _max_cases_for_priority(priority)
+            trimmed = _trim_edge_case_entry(fn_entry, max_cases)
+            if trimmed["edge_cases"]:
+                filtered_functions.append(trimmed)
+
+        filtered_edge_cases = {
+            "source_file": edge_cases["source_file"],
+            "functions": filtered_functions,
+        }
+        if not filtered_edge_cases["functions"]:
+            log.warning("No high-value functions found for %s", edge_cases["source_file"])
+            return []
+        return generator_fn(filtered_edge_cases, **kwargs)
     except Exception as exc:
         log.error("Test generation failed for %s: %s", language, exc)
         return []

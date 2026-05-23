@@ -1,7 +1,7 @@
 """
 Extended edge-case generator.
 
-Wraps the existing ml-service generator and adds:
+Wraps the existing ml_service generator and adds:
   - null/None cases
   - string edge cases
   - boolean combinations
@@ -12,44 +12,26 @@ Wraps the existing ml-service generator and adds:
 """
 from __future__ import annotations
 
-import importlib.util
 import re
 import sys
 from pathlib import Path
 from typing import Any
 
-_HERE = Path(__file__).resolve().parent   # edge-case-engine/
+_HERE = Path(__file__).resolve().parent   # edge_case_engine/
 _ROOT = _HERE.parent                      # repo root
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 
-# Import base generator from ml-service (avoid circular import by using direct import)
-import importlib.util
-_ml_service_gen_path = _ROOT / "ml-service" / "edge_case_engine" / "generator.py"
-if _ml_service_gen_path.exists():
-    _spec = importlib.util.spec_from_file_location(
-        "_ml_service_edge_case_gen", _ml_service_gen_path
-    )
-    if _spec and _spec.loader:
-        _ml_gen_module = importlib.util.module_from_spec(_spec)
-        _spec.loader.exec_module(_ml_gen_module)
-        _base_generate = _ml_gen_module.generate_edge_cases
-    else:
-        # Fallback if spec fails
-        def _base_generate(value):
-            return []
-else:
-    # Fallback if ml-service doesn't exist
-    def _base_generate(value):
-        return []
+from shared.schemas.models import EdgeCaseSchema, FunctionEdgeCases, ParsedFileSchema
+from shared.utils.logger import get_logger
 
-# Import extended rules from this package's rules.py
-from rules import (
+from ml_service.edge_case_engine.generator import generate_edge_cases as _base_generate
+
+from edge_case_engine.rules import (
     BOOLEAN_EDGE_CASES,
     COLLECTION_EDGE_CASES,
     STRING_EDGE_CASES,
 )
-
-from shared.schemas.models import EdgeCaseSchema, FunctionEdgeCases, ParsedFileSchema
-from shared.utils.logger import get_logger
 
 log = get_logger(__name__)
 

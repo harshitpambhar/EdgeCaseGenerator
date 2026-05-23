@@ -3,19 +3,19 @@ Edge Case Engine - HTTP routes.
 
 Wraps existing generator.py with FastAPI endpoints.
 """
-from pathlib import Path
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
-import sys
+from __future__ import annotations
+
 import time
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
 
-# Import existing generator
-from generator import generate_edge_cases
+from shared.utils.logger import get_logger
+from ..generator import generate_edge_cases
 
 
 router = APIRouter(prefix="/api/edge-cases", tags=["Edge Cases"])
+log = get_logger(__name__)
 
 
 class EdgeCaseRequest(BaseModel):
@@ -41,16 +41,15 @@ def generate_edge_cases_endpoint(request: EdgeCaseRequest):
     Supports conditions like: age >= 18, name != '', etc.
     """
     try:
+        log.info("Generating edge cases for condition: %s", request.condition)
         start = time.time()
-        
-        # Use existing generator
         edge_cases = generate_edge_cases(request.condition)
-        
+
         if not isinstance(edge_cases, list):
             edge_cases = [edge_cases]
-        
+
         elapsed = (time.time() - start) * 1000
-        
+
         return EdgeCaseResponse(
             success=True,
             condition=request.condition,
@@ -59,6 +58,7 @@ def generate_edge_cases_endpoint(request: EdgeCaseRequest):
             generation_time_ms=elapsed,
         )
     except Exception as e:
+        log.error("Edge case generation failed for %s: %s", request.condition, e)
         raise HTTPException(status_code=500, detail=f"Generation error: {str(e)}")
 
 

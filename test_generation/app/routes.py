@@ -3,50 +3,64 @@ Test Generation - HTTP routes.
 
 Wraps existing test generator dispatcher.
 """
-from pathlib import Path
+from __future__ import annotations
+
+import time
+from typing import Any
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-import sys
-import time
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-from dispatcher import generate_tests  # Existing dispatcher
+from shared.utils.logger import get_logger
+from ..dispatcher import generate_tests
 
 
 router = APIRouter(prefix="/api/tests", tags=["Test Generation"])
+log = get_logger(__name__)
 
 
 class GenerateTestRequest(BaseModel):
     """Request to generate tests."""
-    edge_cases: dict
+    edge_cases: dict[str, Any]
     language: str
     function_name: str
 
 
-@router.post("/generate", summary="Generate tests for a function")
+class GenerateTestResponse(BaseModel):
+    """Response from test generation."""
+    success: bool
+    function: str
+    language: str
+    tests: list[dict[str, Any]]
+    count: int
+    generation_time_ms: float
+
+
+@router.post("/generate", response_model=GenerateTestResponse, summary="Generate tests for a function")
 def generate_tests_endpoint(request: GenerateTestRequest):
     """Generate test cases for a function based on edge cases."""
     try:
+        log.info("Generating tests for %s (language=%s)", request.function_name, request.language)
         start = time.time()
-        
-        # Use existing generator
         tests = generate_tests(
             edge_cases=request.edge_cases,
             language=request.language,
         )
-        
+
         elapsed = (time.time() - start) * 1000
-        
-        return {
-            "success": True,
-            "function": request.function_name,
-            "language": request.language,
-            "tests": tests if isinstance(tests, list) else [tests],
-            "count": len(tests) if isinstance(tests, list) else 1,
-            "generation_time_ms": elapsed,
-        }
+
+        test_list = tests if isinstance(tests, list) else [tests]
+
+        return GenerateTestResponse(
+            success=True,
+            function=request.function_name,
+            language=request.language,
+            tests=test_list,
+            count=len(test_list),
+            generation_time_ms=elapsed,
+        )
     except Exception as e:
+        log.error("Test generation failed for %s: %s", request.function_name, e)
         raise HTTPException(status_code=500, detail=f"Generation error: {str(e)}")
 
 

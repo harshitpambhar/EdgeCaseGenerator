@@ -4,15 +4,13 @@ Test Generation Engine - FastAPI application.
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+"""
+Test Generation - FastAPI application.
+"""
+from __future__ import annotations
 
 from shared.utils.fastapi_utils import create_app, add_health_routes
-from app.routes import router
-
-
-app = create_app(
-    title="Test Generation",
-    description="Service for generating test files from edge cases",
+from .routes import router
     version="0.1.0",
 )
 

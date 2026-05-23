@@ -3,14 +3,10 @@ Parser Engine - FastAPI application.
 
 Wraps existing parser dispatcher with HTTP routes.
 """
-import sys
-from pathlib import Path
-
-# Setup paths
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from __future__ import annotations
 
 from shared.utils.fastapi_utils import create_app, add_health_routes
-from app.routes import router
+from .routes import router
 
 
 # Create app

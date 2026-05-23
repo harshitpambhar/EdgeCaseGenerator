@@ -24,6 +24,63 @@ from shared.utils.logger import get_logger
 log = get_logger(__name__)
 
 
+def _function_priority(function: dict) -> tuple[str, int]:
+    name = str(function.get("name", ""))
+    parameters = function.get("parameters", []) or []
+    conditions = function.get("conditions", []) or []
+    loops = int(function.get("loops", 0) or 0)
+    returns = int(function.get("returns", 0) or 0)
+    exceptions = int(function.get("exceptions", 0) or 0)
+    complexity_score = int(function.get("complexity_score", 0) or 0)
+
+    score = 0
+    if name and not name.startswith("_"):
+        score += 2
+    if len(parameters) >= 2:
+        score += 2
+    elif len(parameters) == 1:
+        score += 1
+    if conditions:
+        score += min(3, len(conditions))
+    if loops:
+        score += 2
+    if exceptions:
+        score += 2
+    if returns > 1:
+        score += 1
+    if complexity_score >= 5:
+        score += 2
+    elif complexity_score >= 3:
+        score += 1
+
+    if score >= 7:
+        return "high", score
+    if score >= 3:
+        return "medium", score
+    return "low", score
+
+
+def _should_skip_function(function: dict) -> bool:
+    name = str(function.get("name", ""))
+    if not name:
+        log.info("Skipping unnamed function")
+        return True
+    if name.startswith("test_"):
+        log.info("Skipping test function: %s", name)
+        return True
+    if name.startswith("__"):
+        log.info("Skipping dunder function: %s", name)
+        return True
+    if name.startswith("_"):
+        log.info("Skipping internal helper function: %s", name)
+        return True
+    _, score = _function_priority(function)
+    if score < 3:
+        log.info("Skipping trivial function: %s", name)
+        return True
+    return False
+
+
 # ── lazy parser factories ─────────────────────────────────────────────────────
 # Each factory is called once on first use; import errors are caught per-language.
 
@@ -73,7 +130,24 @@ def parse_file(file_path: str, language: str) -> ParsedFileSchema | None:
         return None
     try:
         parser_fn = factory()
-        return parser_fn(file_path)
+        parsed = parser_fn(file_path)
+        if not parsed:
+            return None
+
+        functions = [fn for fn in parsed.get("functions", []) if not _should_skip_function(fn)]
+        if len(functions) != len(parsed.get("functions", [])):
+            log.info(
+                "Filtered %d low-value functions from %s",
+                len(parsed.get("functions", [])) - len(functions),
+                file_path,
+            )
+
+        return ParsedFileSchema(
+            source_file=parsed.get("source_file", file_path),
+            language=parsed.get("language", language),
+            function_count=len(functions),
+            functions=functions,
+        )
     except Exception as exc:
         log.error("Parser error for %s (%s): %s", file_path, language, exc)
         return None

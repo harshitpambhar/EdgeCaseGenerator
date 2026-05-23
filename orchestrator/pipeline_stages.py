@@ -1,6 +1,6 @@
 """Pipeline stages for the orchestrator."""
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 from shared.utils.logger import get_logger
 
 log = get_logger(__name__)
@@ -54,7 +54,7 @@ def analyze_repository_intelligence(repo_dir: Path) -> Dict[str, Any]:
 
 
 def parse_files_parallel(
-    files: List[str],
+    files: List[Dict[str, Any]],
     parse_func,
     max_workers: int = 4
 ) -> tuple[List[Any], List[Dict[str, str]]]:
@@ -81,86 +81,13 @@ def parse_files_parallel(
     for file_path in files:
         try:
             result = parse_func(file_path)
-            parsed.append(result)
+            if result is not None:
+                parsed.append(result)
+            else:
+                errors.append({"file": str(file_path), "error": "Parser returned no result"})
+                log.warning(f"Parser returned no result for {file_path}")
         except Exception as e:
             errors.append({"file": str(file_path), "error": str(e)})
             log.warning(f"Failed to parse {file_path}: {e}")
     
     return parsed, errors
-
-
-def setup_execution_environment(
-    workspace: Path,
-    languages: List[str],
-    dep_mgr
-) -> Dict[str, Any]:
-    """
-    Setup execution environment for the project.
-    
-    Parameters
-    ----------
-    workspace : Path
-        Workspace directory
-    languages : List[str]
-        Detected languages
-    dep_mgr : DependencyManager
-        Dependency manager instance
-    
-    Returns
-    -------
-    Dict[str, Any]
-        Environment setup results
-    """
-    return {
-        "workspace": str(workspace),
-        "languages": languages,
-        "status": "ready",
-    }
-
-
-def persist_pipeline_artifacts(
-    workspace: Path,
-    parsed: List[Any],
-    edge_cases: List[Any],
-    tests: List[Any],
-    execution: Dict[str, Any],
-    coverage: Dict[str, Any],
-    risk: Dict[str, Any]
-) -> Dict[str, Any]:
-    """
-    Persist pipeline artifacts to workspace.
-    
-    Parameters
-    ----------
-    workspace : Path
-        Workspace directory
-    parsed : List[Any]
-        Parsed files
-    edge_cases : List[Any]
-        Generated edge cases
-    tests : List[Any]
-        Generated tests
-    execution : Dict[str, Any]
-        Execution results
-    coverage : Dict[str, Any]
-        Coverage results
-    risk : Dict[str, Any]
-        Risk analysis results
-    
-    Returns
-    -------
-    Dict[str, Any]
-        Persistence results
-    """
-    artifacts_dir = workspace / ".artifacts"
-    artifacts_dir.mkdir(parents=True, exist_ok=True)
-    
-    return {
-        "artifacts_dir": str(artifacts_dir),
-        "status": "persisted",
-        "counts": {
-            "parsed_files": len(parsed),
-            "edge_cases": len(edge_cases),
-            "tests": len(tests),
-        }
-    }

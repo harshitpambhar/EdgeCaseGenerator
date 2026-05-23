@@ -3,18 +3,21 @@ Coverage Analysis - HTTP routes.
 
 Wraps existing coverage analyzer.
 """
+from __future__ import annotations
+
+import time
 from pathlib import Path
+from typing import Any
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-import sys
-import time
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-from runner import run_coverage_analysis  # Existing coverage runner
+from shared.utils.logger import get_logger
+from ..runner import run_coverage
 
 
 router = APIRouter(prefix="/api/coverage", tags=["Coverage"])
+log = get_logger(__name__)
 
 
 class AnalyzeCoverageRequest(BaseModel):
@@ -22,30 +25,43 @@ class AnalyzeCoverageRequest(BaseModel):
     test_file_path: str
     source_dir: str
     language: str
+    work_dir: str | None = None
 
 
-@router.post("/analyze", summary="Analyze test coverage")
+class AnalyzeCoverageResponse(BaseModel):
+    """Response from coverage analysis."""
+    success: bool
+    test_file: str
+    source_dir: str
+    language: str
+    result: dict[str, Any]
+    analysis_time_ms: float
+
+
+@router.post("/analyze", response_model=AnalyzeCoverageResponse, summary="Analyze test coverage")
 def analyze_coverage(request: AnalyzeCoverageRequest):
     """Analyze test coverage for a test file."""
     try:
+        log.info("Analyzing coverage for %s (language=%s)", request.test_file_path, request.language)
         start = time.time()
-        
-        # Use existing analyzer
-        result = run_coverage_analysis(
+        work_dir = Path(request.work_dir) if request.work_dir else Path(request.source_dir)
+        result = run_coverage(
             test_file=Path(request.test_file_path),
-            source_dir=Path(request.source_dir),
             language=request.language,
+            source_dir=Path(request.source_dir),
+            work_dir=work_dir,
         )
-        
+
         elapsed = (time.time() - start) * 1000
-        
-        return {
-            "success": True,
-            "test_file": request.test_file_path,
-            "language": request.language,
-            "overall_coverage": result.get("coverage", 0),
-            "files": result.get("files", []),
-            "analysis_time_ms": elapsed,
-        }
+
+        return AnalyzeCoverageResponse(
+            success=True,
+            test_file=request.test_file_path,
+            source_dir=request.source_dir,
+            language=request.language,
+            result=result,
+            analysis_time_ms=elapsed,
+        )
     except Exception as e:
+        log.error("Coverage analysis failed for %s: %s", request.test_file_path, e)
         raise HTTPException(status_code=500, detail=f"Analysis error: {str(e)}")

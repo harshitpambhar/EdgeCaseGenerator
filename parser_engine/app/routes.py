@@ -3,18 +3,20 @@ Parser Engine - HTTP routes.
 
 Simple wrapper around existing parser dispatcher.
 """
-from pathlib import Path
+from __future__ import annotations
+
+import time
+from typing import Any
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-import sys
 
-# Setup paths
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-from dispatcher import dispatch_parse  # Existing parser dispatcher
+from shared.utils.logger import get_logger
+from ..dispatcher import parse_file as parse_source_file
 
 
 router = APIRouter(prefix="/api/parser", tags=["Parser"])
+log = get_logger(__name__)
 
 
 class ParseRequest(BaseModel):
@@ -28,10 +30,8 @@ class ParseResponse(BaseModel):
     success: bool
     file_path: str
     language: str
-    function_count: int
-    class_count: int
-    total_lines: int
-    total_conditions: int
+    result: dict[str, Any]
+    parse_time_ms: float
 
 
 @router.post("/parse", response_model=ParseResponse, summary="Parse a file")
@@ -42,24 +42,23 @@ def parse_file(request: ParseRequest):
     Extracts functions, classes, and conditions.
     """
     try:
-        # Use existing dispatcher
-        result = dispatch_parse(request.file_path, request.language)
-        
+        log.info("Parsing source file %s (language=%s)", request.file_path, request.language)
+        start = time.time()
+        result = parse_source_file(request.file_path, request.language)
+
         if not result:
             raise HTTPException(status_code=400, detail="Failed to parse file")
-        
+
+        elapsed = (time.time() - start) * 1000
         return ParseResponse(
             success=True,
             file_path=request.file_path,
             language=result.get("language", request.language or "unknown"),
-            function_count=len(result.get("functions", [])),
-            class_count=len(result.get("classes", [])),
-            total_lines=result.get("total_lines", 0),
-            total_conditions=sum(
-                len(f.get("conditions", [])) for f in result.get("functions", [])
-            ),
+            result=result,
+            parse_time_ms=elapsed,
         )
     except Exception as e:
+        log.error("Parse failed for %s: %s", request.file_path, e)
         raise HTTPException(status_code=500, detail=f"Parse error: {str(e)}")
 
 

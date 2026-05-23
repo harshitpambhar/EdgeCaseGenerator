@@ -40,7 +40,6 @@ def _collect_recommendations(
 
 def build_report(
     job_id: str,
-    repo_url: str,
     scan: ScanResult,
     generated_tests: list[GeneratedTest],
     coverage: CoverageSchema,
@@ -51,7 +50,6 @@ def build_report(
     recommendations = _collect_recommendations(risk, coverage)
     report = PipelineResponse(
         job_id=job_id,
-        repository=repo_url,
         languages_detected=scan["languages_detected"],
         functions_detected=functions_detected,
         generated_tests=generated_tests,

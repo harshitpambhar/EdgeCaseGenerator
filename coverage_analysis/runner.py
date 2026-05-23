@@ -151,18 +151,21 @@ def run_coverage(
     language: str,
     source_dir: Path,
     work_dir: Path,
+    output_dir: Path | None = None,
 ) -> CoverageSchema:
     """
     Run coverage analysis for the given test file and language.
     Returns CoverageSchema. Never raises.
     """
     try:
+        artifact_dir = output_dir or work_dir
+        artifact_dir.mkdir(parents=True, exist_ok=True)
         if language == "python":
-            coverage_json = work_dir / "coverage.json"
+            coverage_json = artifact_dir / "coverage.json"
             raw = _run_pytest_coverage(test_file, source_dir, work_dir, coverage_json)
             return _parse_coverage_json(raw, source_dir)
         elif language in ("javascript", "typescript"):
-            coverage_dir = work_dir / "coverage"
+            coverage_dir = artifact_dir
             return _run_jest_coverage(test_file, work_dir, coverage_dir)
         else:
             log.warning("Coverage not implemented for '%s'", language)

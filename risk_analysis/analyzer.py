@@ -1,12 +1,11 @@
 """
 Risk analysis service wrapper.
 
-Delegates to the existing risk-analysis-service/analyzer.py (unchanged)
-and returns the canonical RiskAnalysisSchema.
+Delegates to the existing risk_analysis_service/analyzer.py and returns the
+canonical RiskAnalysisSchema.
 """
 from __future__ import annotations
 
-import importlib.util
 import sys
 from pathlib import Path
 
@@ -14,27 +13,10 @@ _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-# Load existing service analyzer using direct file path to avoid circular imports
-_existing_analyzer_path = _ROOT / "risk-analysis-service" / "analyzer.py"
-if _existing_analyzer_path.exists():
-    _spec = importlib.util.spec_from_file_location(
-        "_risk_analysis_service_analyzer", _existing_analyzer_path
-    )
-    if _spec and _spec.loader:
-        _analyzer_module = importlib.util.module_from_spec(_spec)
-        _spec.loader.exec_module(_analyzer_module)
-        _analyze = _analyzer_module.analyze_functions
-    else:
-        # Fallback if spec fails
-        def _analyze(functions):
-            return {"functions": functions}
-else:
-    # Fallback if service doesn't exist
-    def _analyze(functions):
-        return {"functions": functions}
-
 from shared.schemas.models import ParsedFileSchema, RiskAnalysisSchema
 from shared.utils.logger import get_logger
+
+from risk_analysis_service.analyzer import analyze_functions as _analyze
 
 log = get_logger(__name__)
 
@@ -53,14 +35,44 @@ def analyze_risk(parsed: ParsedFileSchema) -> RiskAnalysisSchema:
             functions = []
         
         result = _analyze(functions)
-        
+
         risk_functions = result.get("functions", [])
         if not isinstance(risk_functions, list):
             log.error(f"Expected result['functions'] to be list, got {type(risk_functions)}")
             risk_functions = []
-        
+
+        normalized = []
+        for original, analyzed in zip(functions, risk_functions):
+            combined = {**original, **analyzed}
+            complexity = int(
+                combined.get("complexity_score", combined.get("complexity", 0))
+                or 0
+            )
+            risk_score = float(combined.get("risk_score", min(100.0, complexity * 8.0)))
+            if risk_score >= 70 or complexity >= 12:
+                risk_level = "HIGH"
+            elif risk_score >= 35 or complexity >= 6:
+                risk_level = "MEDIUM"
+            else:
+                risk_level = "LOW"
+
+            if risk_level == "HIGH":
+                recommendation = "Prioritize refactoring and add focused tests"
+            elif risk_level == "MEDIUM":
+                recommendation = "Add targeted tests and review edge conditions"
+            else:
+                recommendation = "Risk is low; keep coverage current"
+
+            normalized.append({
+                "name": combined.get("name", "unknown"),
+                "complexity": complexity,
+                "risk_score": risk_score,
+                "risk_level": risk_level,
+                "recommendation": combined.get("recommendation", recommendation),
+            })
+
         return {
-            "functions": risk_functions
+            "functions": normalized
         }
     except Exception as e:
         log.error(f"Error in analyze_risk: {e}")
