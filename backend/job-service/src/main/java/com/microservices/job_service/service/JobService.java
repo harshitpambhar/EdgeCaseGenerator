@@ -83,9 +83,39 @@ public class JobService {
         // Persist RUNNING state in its own transaction — immediately visible to frontend
         markRunning(job);
 
+        // A thread-safe buffer for streaming logs
+        StringBuffer logBuffer = new StringBuffer();
+        long[] lastFlushTime = {System.currentTimeMillis()};
+
+        java.util.function.Consumer<String> logConsumer = chunk -> {
+            logBuffer.append(chunk);
+            long now = System.currentTimeMillis();
+            if (now - lastFlushTime[0] > 1000) { // flush every 1 second
+                String toFlush;
+                synchronized (logBuffer) {
+                    toFlush = logBuffer.toString();
+                    logBuffer.setLength(0);
+                }
+                if (!toFlush.isEmpty()) {
+                    self().appendLogs(job.getId(), toFlush);
+                }
+                lastFlushTime[0] = now;
+            }
+        };
+
         try {
             DockerWorkerService.WorkerResult result
-                    = dockerWorkerService.runWorker(job.getRepoUrl(), job.getId().toString());
+                    = dockerWorkerService.runWorker(job.getRepoUrl(), job.getId().toString(), logConsumer);
+
+            // Flush remaining logs before completion
+            String remainingLogs;
+            synchronized (logBuffer) {
+                remainingLogs = logBuffer.toString();
+                logBuffer.setLength(0);
+            }
+            if (!remainingLogs.isEmpty()) {
+                self().appendLogs(job.getId(), remainingLogs);
+            }
 
             if (result.succeeded()) {
                 markCompleted(job, result.containerId(), result.logs());
@@ -115,16 +145,37 @@ public class JobService {
     }
 
     @Transactional
-    public void markCompleted(Job job, String containerId, String logs) {
+    public void markCompleted(Job job, String containerId, String finalLogs) {
         Job managed = jobRepository.findById(job.getId()).orElse(job);
         managed.setStatus(JobStatus.COMPLETED);
         managed.setContainerId(containerId);
         managed.setContainerStatus("EXITED");
-        managed.setLogs(logs);
-        managed.setResultJson(buildResultJson(logs));
         managed.setCompletedAt(Instant.now());
+
+        // Append any remaining bytes not yet flushed by the streaming consumer
+        String existingLogs = managed.getLogs() == null ? "" : managed.getLogs();
+        String fullLogs;
+        if (finalLogs != null && !finalLogs.isEmpty() && !existingLogs.endsWith(finalLogs)) {
+            // Only append if it's genuinely new content (avoid duplicate if already streamed)
+            // A simple heuristic: if the final logs contain the JSON markers, prefer them;
+            // otherwise keep what we already have from streaming.
+            if (finalLogs.contains("---RESULT_JSON_START---")) {
+                fullLogs = existingLogs.isEmpty() ? finalLogs
+                         : existingLogs.contains("---RESULT_JSON_START---") ? existingLogs
+                         : existingLogs + finalLogs;
+            } else {
+                fullLogs = existingLogs.isEmpty() ? finalLogs : existingLogs;
+            }
+        } else {
+            fullLogs = existingLogs.isEmpty() ? (finalLogs == null ? "" : finalLogs) : existingLogs;
+        }
+
+        managed.setLogs(fullLogs);
+        managed.setResultJson(buildResultJson(fullLogs));
         jobRepository.save(managed);
-        log.info("Job {} → COMPLETED (container={})", managed.getId(), containerId);
+        log.info("Job {} → COMPLETED (container={}, resultJson captured={})",
+                managed.getId(), containerId,
+                managed.getResultJson() != null && managed.getResultJson().contains("generated_tests"));
     }
 
     @Transactional
@@ -141,6 +192,17 @@ public class JobService {
         log.warn("Job {} → FAILED: {}", managed.getId(), errorMessage);
     }
 
+    @Transactional
+    public void appendLogs(UUID jobId, String newLogs) {
+        if (newLogs == null || newLogs.isEmpty()) return;
+        jobRepository.findById(jobId).ifPresent(job -> {
+            String currentLogs = job.getLogs();
+            if (currentLogs == null) currentLogs = "";
+            job.setLogs(currentLogs + newLogs);
+            jobRepository.save(job);
+        });
+    }
+
     private Job findOrThrow(UUID id) {
         return jobRepository.findById(id)
                 .orElseThrow(() -> new JobNotFoundException("Job not found: " + id));
@@ -154,7 +216,26 @@ public class JobService {
     }
 
     private String buildResultJson(String logs) {
-        String escaped = logs == null ? "" : logs
+        if (logs == null) {
+            return "{\"logs\":\"\"}";
+        }
+
+        String startMarker = "---RESULT_JSON_START---";
+        String endMarker = "---RESULT_JSON_END---";
+
+        int startIndex = logs.indexOf(startMarker);
+        int endIndex = logs.indexOf(endMarker);
+
+        if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
+            // Extract the actual structured JSON
+            String jsonStr = logs.substring(startIndex + startMarker.length(), endIndex).trim();
+            if (!jsonStr.isEmpty()) {
+                return jsonStr;
+            }
+        }
+
+        // Fallback to old wrapping if no markers found
+        String escaped = logs
                 .replace("\\", "\\\\")
                 .replace("\"", "\\\"")
                 .replace("\n", "\\n")

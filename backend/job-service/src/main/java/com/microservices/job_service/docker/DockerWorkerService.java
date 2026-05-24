@@ -37,7 +37,7 @@ public class DockerWorkerService {
      * @param jobId    used only for log correlation
      * @return WorkerResult containing exit code and captured logs
      */
-    public WorkerResult runWorker(String repoUrl, String jobId) {
+    public WorkerResult runWorker(String repoUrl, String jobId, java.util.function.Consumer<String> logConsumer) {
         log.info("STEP 1 — [job={}] Async worker started for repo: {}", jobId, repoUrl);
 
         // STEP 2: Pull image if not present locally
@@ -52,12 +52,46 @@ public class DockerWorkerService {
             dockerClient.startContainerCmd(containerId).exec();
             log.info("STEP 4 — [job={}] Container started: {}", jobId, containerId);
 
+            // Start streaming logs in the background — keep callback reference so we can
+            // await its full completion after the container exits (prevents lost tail bytes)
+            StringBuilder accumulatedLogs = new StringBuilder();
+            com.github.dockerjava.api.async.ResultCallback.Adapter<com.github.dockerjava.api.model.Frame> logCallback =
+                new com.github.dockerjava.api.async.ResultCallback.Adapter<>() {
+                    @Override
+                    public void onNext(com.github.dockerjava.api.model.Frame frame) {
+                        if (frame != null && frame.getPayload() != null) {
+                            String chunk = new String(frame.getPayload());
+                            accumulatedLogs.append(chunk);
+                            if (logConsumer != null) {
+                                logConsumer.accept(chunk);
+                            }
+                        }
+                    }
+                };
+
+            try {
+                dockerClient.logContainerCmd(containerId)
+                        .withStdOut(true)
+                        .withStdErr(true)
+                        .withFollowStream(true)
+                        .exec(logCallback);
+            } catch (Exception e) {
+                log.warn("[job={}] Failed to start log stream: {}", jobId, e.getMessage());
+            }
+
             // STEP 5: Wait for container to finish
             log.info("STEP 5 — [job={}] Waiting for container to finish (timeout={}s)...", jobId, props.getTimeoutSeconds());
             int exitCode = waitForContainer(containerId, jobId);
 
-            // STEP 6: Collect logs
-            String logs = collectLogs(containerId, jobId);
+            // STEP 6: Wait for log callback to fully flush all remaining bytes
+            // This is critical — the JSON result markers arrive in the last few lines
+            try {
+                logCallback.awaitCompletion(15, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (Exception e) {
+                log.warn("[job={}] Log callback did not complete cleanly: {}", jobId, e.getMessage());
+            }
+
+            String logs = accumulatedLogs.toString();
             log.info("STEP 6 — [job={}] Logs collected ({} chars)", jobId, logs.length());
 
             // STEP 7: Done
@@ -112,16 +146,10 @@ public class DockerWorkerService {
     }
 
     private String createContainer(String repoUrl, String jobId) {
-        /*
-         * STEP 1 verification command:
-         *   sh -c "echo 'Docker working' && sleep 5"
-         *
-         * This proves real container creation, lifecycle tracking, and log capture.
-         * Once verified, this will be replaced with the actual repo-cloning command.
-         */
+        // Execute the real Python CLI worker, which will clone the repo
+        // into an ephemeral directory and run the orchestrator pipeline.
         List<String> cmd = List.of(
-                "sh", "-c",
-                "echo 'Docker working' && sleep 5"
+                "python", "cli_worker.py", jobId, repoUrl
         );
 
         HostConfig hostConfig = HostConfig.newHostConfig()
