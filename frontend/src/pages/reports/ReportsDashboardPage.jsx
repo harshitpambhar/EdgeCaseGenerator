@@ -468,16 +468,55 @@ export default function ReportsDashboardPage() {
 
               {/* Dynamic Result Data Parsing */}
               {parsedResult ? (
-                <div className="space-y-3">
-                  <p className="text-xs font-medium text-white/60">Structured Output Data</p>
-                  <div className="rounded-lg bg-[#0a0a0a] border border-white/[0.05] overflow-hidden">
-                    <div className="px-4 py-2 border-b border-white/[0.05] bg-white/[0.02]">
-                      <p className="text-[10px] font-mono text-white/40">JSON Payload</p>
+                <div className="space-y-6">
+                  {parsedResult.generated_tests && parsedResult.generated_tests.length > 0 ? (
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-medium text-white flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-emerald-400" />
+                        Generated Test Cases ({parsedResult.generated_tests.length})
+                      </h3>
+                      <div className="grid grid-cols-1 gap-4">
+                        {parsedResult.generated_tests.map((test, idx) => (
+                          <div key={idx} className="rounded-lg bg-white/[0.02] border border-white/[0.05] overflow-hidden">
+                            <div className="px-4 py-3 border-b border-white/[0.05] bg-white/[0.01] flex items-center justify-between">
+                              <div>
+                                <p className="text-xs font-medium text-emerald-400 font-mono mb-1">{test.test_name}</p>
+                                <p className="text-[10px] text-white/40 font-mono">
+                                  Target: {test.function} | Framework: {test.framework}
+                                </p>
+                              </div>
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wider">
+                                {test.language}
+                              </span>
+                            </div>
+                            <div className="p-4 bg-[#0a0a0a]">
+                              {test.condition && (
+                                <p className="text-xs text-white/50 mb-3 pb-3 border-b border-white/[0.05]">
+                                  <span className="text-white/30 uppercase tracking-wider text-[10px] mr-2">Condition:</span>
+                                  <code className="px-1.5 py-0.5 rounded bg-white/[0.04] text-amber-200/70">{test.condition}</code>
+                                </p>
+                              )}
+                              <pre className="text-[11px] text-white/70 font-mono overflow-x-auto custom-scrollbar">
+                                {test.code}
+                              </pre>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <pre className="p-4 text-[11px] text-white/60 font-mono overflow-x-auto leading-relaxed custom-scrollbar">
-                      {JSON.stringify(parsedResult, null, 2)}
-                    </pre>
-                  </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-xs font-medium text-white/60">Structured Output Data</p>
+                      <div className="rounded-lg bg-[#0a0a0a] border border-white/[0.05] overflow-hidden">
+                        <div className="px-4 py-2 border-b border-white/[0.05] bg-white/[0.02]">
+                          <p className="text-[10px] font-mono text-white/40">JSON Payload</p>
+                        </div>
+                        <pre className="p-4 text-[11px] text-white/60 font-mono overflow-x-auto leading-relaxed custom-scrollbar">
+                          {JSON.stringify(parsedResult, null, 2)}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p className="text-sm text-white/50">No structured JSON result data was captured for this execution.</p>
