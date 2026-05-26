@@ -8,7 +8,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Button } from '../../components/ui/button';
 import { Separator } from '../../components/ui/separator';
-import api, { getErrorMessage } from '../../services/api';
+import api, { getErrorMessage, jobService } from '../../services/api';
 import { AnalysisResults } from './AnalysisResults';
 
 const languages = ['Python', 'Node.js', 'TypeScript', 'Java', 'Go', 'Rust', 'C/C++', 'Ruby'];
@@ -31,17 +31,22 @@ export default function UploadPage() {
       setError('Please enter a GitHub repository URL');
       return;
     }
+    const githubPattern = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+(\.git)?$/;
+    if (!githubPattern.test(repoUrl.trim())) {
+      setError('Please enter a valid GitHub HTTPS URL (e.g. https://github.com/user/repo)');
+      return;
+    }
 
     setLoading(true);
     setError('');
-    setAnalysisData(null);
 
     try {
-      const response = await api.post('/repo/analyze', { repoUrl: repoUrl.trim() });
-      setAnalysisData(response.data);
+      const { data } = await jobService.create(repoUrl.trim());
+      // Store the new job ID so ExecutionPage can highlight it
+      sessionStorage.setItem('lastJobId', data.id);
+      navigate('/executions');
     } catch (err) {
       setError(getErrorMessage(err));
-      console.error('Analysis error:', err);
     } finally {
       setLoading(false);
     }

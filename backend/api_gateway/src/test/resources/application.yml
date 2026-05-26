@@ -1,0 +1,56 @@
+# Test Configuration for API Gateway
+spring:
+  application:
+    name: api-gateway-test
+  main:
+    web-application-type: reactive
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/auth/**
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/users/**
+
+server:
+  port: 8080
+
+eureka:
+  client:
+    enabled: false
+    fetch-registry: false
+    register-with-eureka: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus,gateway
+
+jwt:
+  secret: your-secret-key-change-in-production-very-important
+  expiration: 86400
+
+rate-limit:
+  enabled: true
+  per-user-limit: 1000
+  per-ip-limit: 10000
+  window-duration-minutes: 1
+
+logging:
+  level:
+    root: INFO
+    com.microservices: DEBUG
+    org.springframework.cloud.gateway: DEBUG

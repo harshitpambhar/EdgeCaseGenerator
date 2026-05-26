@@ -66,6 +66,12 @@ export const API_ENDPOINTS = {
     DOWNLOAD: (id, format) => `/reports/${id}/download?format=${format}`,
     RECENT: '/reports/recent',
   },
+  JOBS: {
+    LIST: '/jobs',
+    GET: (id) => `/jobs/${id}`,
+    CREATE: '/jobs',
+    DELETE: (id) => `/jobs/${id}`,
+  },
   SETTINGS: {
     GET: '/settings',
     UPDATE: '/settings',
