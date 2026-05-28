@@ -1,5 +1,10 @@
 package com.microservices.job_service.docker;
 
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import org.springframework.stereotype.Service;
+
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.PullImageResultCallback;
@@ -7,20 +12,17 @@ import com.github.dockerjava.api.command.WaitContainerResultCallback;
 import com.github.dockerjava.api.model.HostConfig;
 import com.microservices.job_service.config.DockerWorkerProperties;
 import com.microservices.job_service.exception.DockerOperationException;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 /**
- * Launches a short-lived Docker container that clones a GitHub repository
- * into an ephemeral /workspace directory, scans it, and returns the logs.
+ * Launches a short-lived Docker container that clones a GitHub repository into
+ * an ephemeral /workspace directory, scans it, and returns the logs.
  *
- * The host machine NEVER clones the repository.
- * Spring Boot is purely an orchestrator: it creates the container,
- * waits for it to finish, collects stdout/stderr, then removes it.
+ * The host machine NEVER clones the repository. Spring Boot is purely an
+ * orchestrator: it creates the container, waits for it to finish, collects
+ * stdout/stderr, then removes it.
  */
 @Slf4j
 @Service
@@ -33,8 +35,8 @@ public class DockerWorkerService {
     /**
      * Runs the full worker lifecycle for a given repo URL.
      *
-     * @param repoUrl  GitHub HTTPS URL to clone
-     * @param jobId    used only for log correlation
+     * @param repoUrl GitHub HTTPS URL to clone
+     * @param jobId used only for log correlation
      * @return WorkerResult containing exit code and captured logs
      */
     public WorkerResult runWorker(String repoUrl, String jobId, java.util.function.Consumer<String> logConsumer) {
@@ -55,19 +57,19 @@ public class DockerWorkerService {
             // Start streaming logs in the background — keep callback reference so we can
             // await its full completion after the container exits (prevents lost tail bytes)
             StringBuilder accumulatedLogs = new StringBuilder();
-            com.github.dockerjava.api.async.ResultCallback.Adapter<com.github.dockerjava.api.model.Frame> logCallback =
-                new com.github.dockerjava.api.async.ResultCallback.Adapter<>() {
-                    @Override
-                    public void onNext(com.github.dockerjava.api.model.Frame frame) {
-                        if (frame != null && frame.getPayload() != null) {
-                            String chunk = new String(frame.getPayload());
-                            accumulatedLogs.append(chunk);
-                            if (logConsumer != null) {
-                                logConsumer.accept(chunk);
-                            }
+            com.github.dockerjava.api.async.ResultCallback.Adapter<com.github.dockerjava.api.model.Frame> logCallback
+                    = new com.github.dockerjava.api.async.ResultCallback.Adapter<>() {
+                @Override
+                public void onNext(com.github.dockerjava.api.model.Frame frame) {
+                    if (frame != null && frame.getPayload() != null) {
+                        String chunk = new String(frame.getPayload());
+                        accumulatedLogs.append(chunk);
+                        if (logConsumer != null) {
+                            logConsumer.accept(chunk);
                         }
                     }
-                };
+                }
+            };
 
             try {
                 dockerClient.logContainerCmd(containerId)
@@ -92,6 +94,12 @@ public class DockerWorkerService {
             }
 
             String logs = accumulatedLogs.toString();
+            if (logs.isEmpty() || !logs.contains("---RESULT_JSON_START---")) {
+                String fallbackLogs = collectLogs(containerId, jobId);
+                if (!fallbackLogs.isEmpty()) {
+                    logs = logs.isEmpty() ? fallbackLogs : logs + fallbackLogs;
+                }
+            }
             log.info("STEP 6 — [job={}] Logs collected ({} chars)", jobId, logs.length());
 
             // STEP 7: Done
@@ -109,10 +117,9 @@ public class DockerWorkerService {
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
-
     /**
-     * Pulls the worker Docker image if it is not available locally.
-     * This prevents createContainerCmd from failing with "image not found".
+     * Pulls the worker Docker image if it is not available locally. This
+     * prevents createContainerCmd from failing with "image not found".
      */
     private void pullImageIfMissing(String jobId) {
         String image = props.getImage();
@@ -207,7 +214,9 @@ public class DockerWorkerService {
     }
 
     private void removeContainer(String containerId, String jobId) {
-        if (!props.isAutoRemove()) return;
+        if (!props.isAutoRemove()) {
+            return;
+        }
         try {
             dockerClient.removeContainerCmd(containerId)
                     .withForce(true)
@@ -221,8 +230,8 @@ public class DockerWorkerService {
     // -------------------------------------------------------------------------
     // Result record
     // -------------------------------------------------------------------------
-
     public record WorkerResult(String containerId, int exitCode, String logs) {
+
         public boolean succeeded() {
             return exitCode == 0;
         }

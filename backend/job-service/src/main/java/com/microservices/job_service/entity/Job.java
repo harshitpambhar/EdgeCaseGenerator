@@ -71,6 +71,12 @@ public class Job {
     @Column(name = "completed_at")
     private Instant completedAt;
 
+    @Column(name = "user_name", length = 255)
+    private String userName;
+
+    @Column(name = "user_email", length = 255)
+    private String userEmail;
+
     @PrePersist
     void onCreate() {
         Instant now = Instant.now();

@@ -1,5 +1,14 @@
 package com.microservices.job_service.service;
 
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
+import org.springframework.context.ApplicationContext;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.microservices.job_service.docker.DockerWorkerService;
 import com.microservices.job_service.dto.CreateJobRequest;
 import com.microservices.job_service.dto.JobResponse;
@@ -7,16 +16,9 @@ import com.microservices.job_service.entity.Job;
 import com.microservices.job_service.entity.JobStatus;
 import com.microservices.job_service.exception.JobNotFoundException;
 import com.microservices.job_service.repository.JobRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationContext;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
 
 @Slf4j
 @Service
@@ -32,6 +34,8 @@ public class JobService {
         Job job = Job.builder()
                 .repoUrl(request.getRepoUrl())
                 .status(JobStatus.QUEUED)
+                .userName(request.getUserName())
+                .userEmail(request.getUserEmail())
                 .build();
 
         job = jobRepository.save(job);
@@ -53,6 +57,14 @@ public class JobService {
     @Transactional(readOnly = true)
     public List<JobResponse> getAllJobs() {
         return jobRepository.findAllByOrderByCreatedAtDesc()
+                .stream()
+                .map(JobResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<JobResponse> getJobsByUser(String userEmail) {
+        return jobRepository.findByUserEmailOrderByCreatedAtDesc(userEmail)
                 .stream()
                 .map(JobResponse::from)
                 .toList();
@@ -161,8 +173,8 @@ public class JobService {
             // otherwise keep what we already have from streaming.
             if (finalLogs.contains("---RESULT_JSON_START---")) {
                 fullLogs = existingLogs.isEmpty() ? finalLogs
-                         : existingLogs.contains("---RESULT_JSON_START---") ? existingLogs
-                         : existingLogs + finalLogs;
+                        : existingLogs.contains("---RESULT_JSON_START---") ? existingLogs
+                        : existingLogs + finalLogs;
             } else {
                 fullLogs = existingLogs.isEmpty() ? finalLogs : existingLogs;
             }
@@ -194,10 +206,14 @@ public class JobService {
 
     @Transactional
     public void appendLogs(UUID jobId, String newLogs) {
-        if (newLogs == null || newLogs.isEmpty()) return;
+        if (newLogs == null || newLogs.isEmpty()) {
+            return;
+        }
         jobRepository.findById(jobId).ifPresent(job -> {
             String currentLogs = job.getLogs();
-            if (currentLogs == null) currentLogs = "";
+            if (currentLogs == null) {
+                currentLogs = "";
+            }
             job.setLogs(currentLogs + newLogs);
             jobRepository.save(job);
         });
@@ -226,9 +242,11 @@ public class JobService {
         int startIndex = logs.indexOf(startMarker);
         int endIndex = logs.indexOf(endMarker);
 
-        if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
+        if (startIndex != -1) {
             // Extract the actual structured JSON
-            String jsonStr = logs.substring(startIndex + startMarker.length(), endIndex).trim();
+            String jsonStr = endIndex != -1 && endIndex > startIndex
+                    ? logs.substring(startIndex + startMarker.length(), endIndex).trim()
+                    : logs.substring(startIndex + startMarker.length()).trim();
             if (!jsonStr.isEmpty()) {
                 return jsonStr;
             }

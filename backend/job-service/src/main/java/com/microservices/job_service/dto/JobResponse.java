@@ -25,6 +25,8 @@ public class JobResponse {
     private Instant updatedAt;
     private Instant startedAt;
     private Instant completedAt;
+    private String userName;
+    private String userEmail;
 
     public static JobResponse from(Job job) {
         return JobResponse.builder()
@@ -41,6 +43,8 @@ public class JobResponse {
                 .updatedAt(job.getUpdatedAt())
                 .startedAt(job.getStartedAt())
                 .completedAt(job.getCompletedAt())
+                .userName(job.getUserName())
+                .userEmail(job.getUserEmail())
                 .build();
     }
 }

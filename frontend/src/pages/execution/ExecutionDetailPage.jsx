@@ -122,13 +122,21 @@ export default function ExecutionDetailPage() {
   if (!job) return null;
 
   let parsedResult = null;
+  let parsedResultWithoutLogs = null;
   if (job.resultJson) {
-    try { parsedResult = JSON.parse(job.resultJson); } catch { /* raw string */ }
+    try { 
+      parsedResult = JSON.parse(job.resultJson); 
+      if (parsedResult && typeof parsedResult === 'object') {
+        const { logs, ...rest } = parsedResult;
+        parsedResultWithoutLogs = rest;
+      }
+    } catch { /* raw string */ }
   }
 
   const logLines = parsedResult?.logs
     ? parsedResult.logs.split('\n').filter(Boolean)
     : [];
+  const rawResultJson = parsedResultWithoutLogs ?? parsedResult ?? job.resultJson;
 
   return (
     <div className="max-w-3xl mx-auto space-y-5 pb-8">
@@ -220,7 +228,7 @@ export default function ExecutionDetailPage() {
             Raw result JSON
           </summary>
           <pre className="px-4 pb-4 text-[11px] text-white/30 font-mono whitespace-pre-wrap overflow-x-auto leading-relaxed">
-            {JSON.stringify(parsedResult ?? job.resultJson, null, 2)}
+            {JSON.stringify(rawResultJson, null, 2)}
           </pre>
         </details>
       )}

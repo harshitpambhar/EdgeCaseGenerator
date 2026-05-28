@@ -16,9 +16,13 @@ import DashboardPage from './pages/dashboard/DashboardPage';
 import UploadPage from './pages/upload/UploadPage';
 import SettingsPage from './pages/settings/SettingsPage';
 
+import ProjectsPage from './pages/projects/ProjectsPage';
+import ProjectOverviewPage from './pages/projects/ProjectOverviewPage';
+
 // New pages
 import RepositoryAnalysisPage from './pages/repository/RepositoryAnalysisPage';
 import ReportsDashboardPage from './pages/reports/ReportsDashboardPage';
+import CoverageReportPage from './pages/reports/CoverageReportPage';
 import TestCasesPage from './pages/testcases/TestCasesPage';
 import ExecutionPage from './pages/execution/ExecutionPage';
 import ExecutionDetailPage from './pages/execution/ExecutionDetailPage';
@@ -53,6 +57,21 @@ export default function App() {
               />
 
               <Route
+                path="/projects"
+                element={<ProtectedRoute element={<ProjectsPage />} />}
+              />
+
+              <Route
+                path="/project/:id"
+                element={<ProtectedRoute element={<ProjectOverviewPage />} />}
+              />
+
+              <Route
+                path="/projects/:id"
+                element={<ProtectedRoute element={<ProjectOverviewPage />} />}
+              />
+
+              <Route
                 path="/repository"
                 element={<ProtectedRoute element={<RepositoryAnalysisPage />} />}
               />
@@ -60,6 +79,11 @@ export default function App() {
               <Route
                 path="/reports"
                 element={<ProtectedRoute element={<ReportsDashboardPage />} />}
+              />
+
+              <Route
+                path="/coverage"
+                element={<ProtectedRoute element={<CoverageReportPage />} />}
               />
 
               <Route
