@@ -9,6 +9,7 @@ import {
 import { RiLoader4Line } from 'react-icons/ri';
 import { AlertCircle } from 'lucide-react';
 import { jobService, getErrorMessage } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import { formatRelativeTime, formatDateTime } from '../../utils/formatting';
 import { COLOR_BY_STATUS } from '../../constants/status_values';
 
@@ -53,6 +54,7 @@ function ProgressBar({ status }) {
 }
 
 export default function ExecutionPage() {
+  const { user } = useAuth();
   const [jobs, setJobs] = useState([]);
   const [loadingList, setLoadingList] = useState(true);
   const [listError, setListError] = useState(null);
@@ -63,8 +65,9 @@ export default function ExecutionPage() {
   const lastJobId = sessionStorage.getItem('lastJobId');
 
   const fetchAll = useCallback(async () => {
+    if (!user?.email) return;
     try {
-      const { data } = await jobService.getAll();
+      const { data } = await jobService.getByUser(user.email);
       setJobs(Array.isArray(data) ? data : []);
       setListError(null);
     } catch (err) {
@@ -72,18 +75,23 @@ export default function ExecutionPage() {
     } finally {
       setLoadingList(false);
     }
-  }, []);
+  }, [user?.email]);
 
   // Initial load
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => {
+    if (user?.email) {
+      fetchAll();
+    }
+  }, [fetchAll, user?.email]);
 
   // Poll while any job is still active
   useEffect(() => {
+    if (!user?.email) return;
     const hasActive = jobs.some(j => j.status === 'QUEUED' || j.status === 'RUNNING');
     if (!hasActive) return;
     const timer = setInterval(fetchAll, POLL_INTERVAL);
     return () => clearInterval(timer);
-  }, [jobs, fetchAll]);
+  }, [jobs, fetchAll, user?.email]);
 
   const handleDelete = async (id, e) => {
     e.stopPropagation();

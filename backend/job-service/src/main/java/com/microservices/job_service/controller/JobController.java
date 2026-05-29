@@ -46,6 +46,12 @@ public class JobController {
         return ResponseEntity.ok(jobService.getAllJobs());
     }
 
+    @GetMapping("/user/{email}")
+    @Operation(summary = "List jobs by user email")
+    public ResponseEntity<List<JobResponse>> getJobsByUser(@PathVariable String email) {
+        return ResponseEntity.ok(jobService.getJobsByUser(email));
+    }
+
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete a job")
     public ResponseEntity<Void> deleteJob(@PathVariable UUID id) {

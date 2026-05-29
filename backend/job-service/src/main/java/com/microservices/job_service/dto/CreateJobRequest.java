@@ -19,4 +19,8 @@ public class CreateJobRequest {
         message = "Must be a valid GitHub HTTPS URL"
     )
     private String repoUrl;
+
+    private String userName;
+
+    private String userEmail;
 }

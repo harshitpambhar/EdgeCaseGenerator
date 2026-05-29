@@ -8,6 +8,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Button } from '../../components/ui/button';
 import { Separator } from '../../components/ui/separator';
+import { useAuth } from '../../context/AuthContext';
 import api, { getErrorMessage, jobService } from '../../services/api';
 import { AnalysisResults } from './AnalysisResults';
 
@@ -22,6 +23,7 @@ export default function UploadPage() {
   const [loading, setLoading] = useState(false);
   const [analysisData, setAnalysisData] = useState(null);
   const [error, setError] = useState('');
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const canRun = activeTab === 'upload' ? uploadedFiles.length > 0 : repoUrl.trim().length > 0;
@@ -41,7 +43,7 @@ export default function UploadPage() {
     setError('');
 
     try {
-      const { data } = await jobService.create(repoUrl.trim());
+      const { data } = await jobService.create(repoUrl.trim(), user?.name || '', user?.email || '');
       // Store the new job ID so ExecutionPage can highlight it
       sessionStorage.setItem('lastJobId', data.id);
       navigate('/executions');

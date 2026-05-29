@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useJobPolling } from '../../hooks/useJobPolling';
 import { jobService, getErrorMessage } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import { formatRelativeTime, formatDateTime } from '../../utils/formatting';
 import { COLOR_BY_STATUS } from '../../constants/status_values';
 
@@ -137,6 +138,7 @@ function VerticalTimeline({ job }) {
 
 // Main Report Component
 export default function ReportsDashboardPage() {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const jobId = searchParams.get('jobId');
@@ -150,16 +152,22 @@ export default function ReportsDashboardPage() {
   // For the empty state (no jobId selected)
   const [recentJobs, setRecentJobs] = useState([]);
   const [loadingRecent, setLoadingRecent] = useState(false);
+  const [testPage, setTestCasePage] = useState(1);
+  const TEST_PAGE_SIZE = 10;
 
   useEffect(() => {
-    if (!jobId) {
+    setTestCasePage(1);
+  }, [jobId]);
+
+  useEffect(() => {
+    if (!jobId && user?.email) {
       setLoadingRecent(true);
-      jobService.getAll()
+      jobService.getByUser(user.email)
         .then(({ data }) => setRecentJobs(Array.isArray(data) ? data : []))
         .catch(() => {})
         .finally(() => setLoadingRecent(false));
     }
-  }, [jobId]);
+  }, [jobId, user?.email]);
 
   // Auto-scroll logs to bottom if running
   useEffect(() => {
@@ -268,8 +276,15 @@ export default function ReportsDashboardPage() {
   // Derived Data
   // ---------------------------------------------------------------------------
   let parsedResult = null;
+  let parsedResultWithoutLogs = null;
   if (job.resultJson) {
-    try { parsedResult = JSON.parse(job.resultJson); } catch { /* ignore */ }
+    try { 
+      parsedResult = JSON.parse(job.resultJson); 
+      if (parsedResult && typeof parsedResult === 'object') {
+        const { logs, ...rest } = parsedResult;
+        parsedResultWithoutLogs = rest;
+      }
+    } catch { /* ignore */ }
   }
 
   const logLines = job.logs ? job.logs.split('\n') : [];
@@ -476,32 +491,74 @@ export default function ReportsDashboardPage() {
                         Generated Test Cases ({parsedResult.generated_tests.length})
                       </h3>
                       <div className="grid grid-cols-1 gap-4">
-                        {parsedResult.generated_tests.map((test, idx) => (
-                          <div key={idx} className="rounded-lg bg-white/[0.02] border border-white/[0.05] overflow-hidden">
-                            <div className="px-4 py-3 border-b border-white/[0.05] bg-white/[0.01] flex items-center justify-between">
-                              <div>
-                                <p className="text-xs font-medium text-emerald-400 font-mono mb-1">{test.test_name}</p>
-                                <p className="text-[10px] text-white/40 font-mono">
-                                  Target: {test.function} | Framework: {test.framework}
-                                </p>
-                              </div>
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wider">
-                                {test.language}
-                              </span>
-                            </div>
-                            <div className="p-4 bg-[#0a0a0a]">
-                              {test.condition && (
-                                <p className="text-xs text-white/50 mb-3 pb-3 border-b border-white/[0.05]">
-                                  <span className="text-white/30 uppercase tracking-wider text-[10px] mr-2">Condition:</span>
-                                  <code className="px-1.5 py-0.5 rounded bg-white/[0.04] text-amber-200/70">{test.condition}</code>
-                                </p>
+                        {(() => {
+                          const allTests = parsedResult.generated_tests || [];
+                          const totalTests = allTests.length;
+                          const totalTestPages = Math.ceil(totalTests / TEST_PAGE_SIZE);
+                          const paginatedTests = allTests.slice((testPage - 1) * TEST_PAGE_SIZE, testPage * TEST_PAGE_SIZE);
+
+                          return (
+                            <>
+                              {paginatedTests.map((test, idx) => {
+                                const realIdx = (testPage - 1) * TEST_PAGE_SIZE + idx;
+                                return (
+                                  <div key={realIdx} className="rounded-lg bg-white/[0.02] border border-white/[0.05] overflow-hidden">
+                                    <div className="px-4 py-3 border-b border-white/[0.05] bg-white/[0.01] flex items-center justify-between">
+                                      <div>
+                                        <p className="text-xs font-medium text-emerald-400 font-mono mb-1">{test.test_name}</p>
+                                        <p className="text-[10px] text-white/40 font-mono">
+                                          Target: {test.function} | Framework: {test.framework}
+                                        </p>
+                                      </div>
+                                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wider">
+                                        {test.language}
+                                      </span>
+                                    </div>
+                                    <div className="p-4 bg-[#0a0a0a]">
+                                      {test.condition && (
+                                        <p className="text-xs text-white/50 mb-3 pb-3 border-b border-white/[0.05]">
+                                          <span className="text-white/30 uppercase tracking-wider text-[10px] mr-2">Condition:</span>
+                                          <code className="px-1.5 py-0.5 rounded bg-white/[0.04] text-amber-200/70">{test.condition}</code>
+                                        </p>
+                                      )}
+                                      <pre className="text-[11px] text-white/70 font-mono overflow-x-auto custom-scrollbar">
+                                        {test.code}
+                                      </pre>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+
+                              {/* Pagination Controls */}
+                              {totalTestPages > 1 && (
+                                <div className="flex items-center justify-between mt-6 pt-4 border-t border-white/[0.06]">
+                                  <p className="text-xs text-white/30">
+                                    Showing {(testPage - 1) * TEST_PAGE_SIZE + 1}–{Math.min(testPage * TEST_PAGE_SIZE, totalTests)} of {totalTests} test cases
+                                  </p>
+                                  <div className="flex flex-col items-end gap-1">
+                                    <div className="flex gap-1">
+                                      <button
+                                        onClick={() => setTestCasePage(p => Math.max(1, p - 1))}
+                                        disabled={testPage === 1}
+                                        className="w-14 h-8 rounded-lg text-xs font-medium transition-all border-none cursor-pointer disabled:opacity-30 bg-white/[0.04] text-white/40 hover:text-white hover:bg-white/[0.08] flex items-center justify-center"
+                                      >
+                                        Prev
+                                      </button>
+                                      <button
+                                        onClick={() => setTestCasePage(p => Math.min(totalTestPages, p + 1))}
+                                        disabled={testPage === totalTestPages}
+                                        className="w-14 h-8 rounded-lg text-xs font-medium transition-all border-none cursor-pointer disabled:opacity-30 bg-white/[0.04] text-white/40 hover:text-white hover:bg-white/[0.08] flex items-center justify-center"
+                                      >
+                                        Next
+                                      </button>
+                                    </div>
+                                    <p className="text-[10px] text-white/30">Page {testPage} of {totalTestPages}</p>
+                                  </div>
+                                </div>
                               )}
-                              <pre className="text-[11px] text-white/70 font-mono overflow-x-auto custom-scrollbar">
-                                {test.code}
-                              </pre>
-                            </div>
-                          </div>
-                        ))}
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                   ) : (
@@ -512,7 +569,7 @@ export default function ReportsDashboardPage() {
                           <p className="text-[10px] font-mono text-white/40">JSON Payload</p>
                         </div>
                         <pre className="p-4 text-[11px] text-white/60 font-mono overflow-x-auto leading-relaxed custom-scrollbar">
-                          {JSON.stringify(parsedResult, null, 2)}
+                          {JSON.stringify(parsedResultWithoutLogs || parsedResult, null, 2)}
                         </pre>
                       </div>
                     </div>
