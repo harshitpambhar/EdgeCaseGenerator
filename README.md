@@ -6,6 +6,45 @@ An enterprise-grade AI-powered platform that automatically generates intelligent
 
 ---
 
+## 🚀 Quick Start with Docker
+
+The entire project is **fully containerized** and can be run with a single command!
+
+### Prerequisites
+- [Docker Desktop](https://www.docker.com/products/docker-desktop) installed and running
+
+### Start All Services
+```bash
+cd EdgeCaseGenerator
+
+# Windows (PowerShell)
+./docker-cmd.ps1 up
+
+# Windows (Command Prompt)
+docker-cmd.bat up
+
+# macOS / Linux
+docker-compose up -d
+```
+
+### Access the Application
+- **Frontend**: http://localhost:3000
+- **API Gateway**: http://localhost:8080
+- **Eureka Dashboard**: http://localhost:8761/eureka
+
+### Stop Services
+```bash
+# Windows (PowerShell)
+./docker-cmd.ps1 down
+
+# macOS / Linux
+docker-compose down
+```
+
+📖 **Full Docker Documentation**: See [DOCKER_QUICK_START.md](DOCKER_QUICK_START.md) and [DOCKER_DEPLOYMENT.md](DOCKER_DEPLOYMENT.md)
+
+---
+
 ## 🎯 Project Overview
 
 This platform combines **AI/ML**, **NLP**, **Static Analysis**, and **DevOps** to automatically:

@@ -1,4 +1,4 @@
-# Multi-stage build for api-gateway
+# Multi-stage build for Config Server
 FROM eclipse-temurin:21-jdk-alpine AS builder
 
 WORKDIR /app
@@ -31,11 +31,11 @@ RUN chown -R app:app /app
 USER app
 
 # Expose default Spring Boot port
-EXPOSE 8080
+EXPOSE 8888
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8888/actuator/health || exit 1
 
 # JVM options for production
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Xms256m -Xmx1024m"

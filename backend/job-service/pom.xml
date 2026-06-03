@@ -117,10 +117,10 @@
             <artifactId>docker-java-core</artifactId>
             <version>${docker-java.version}</version>
         </dependency>
-        <!-- docker-java transport (uses Apache HttpClient 5) -->
+        <!-- OkHttp transport — required for unix:///var/run/docker.sock (httpclient5 breaks unix sockets) -->
         <dependency>
             <groupId>com.github.docker-java</groupId>
-            <artifactId>docker-java-transport-httpclient5</artifactId>
+            <artifactId>docker-java-transport-okhttp</artifactId>
             <version>${docker-java.version}</version>
         </dependency>
 

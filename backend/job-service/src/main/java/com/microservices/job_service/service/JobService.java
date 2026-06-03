@@ -8,6 +8,8 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.microservices.job_service.docker.DockerWorkerService;
 import com.microservices.job_service.dto.CreateJobRequest;
@@ -41,10 +43,14 @@ public class JobService {
         job = jobRepository.save(job);
         log.info("Job created: id={} repoUrl={}", job.getId(), job.getRepoUrl());
 
-        // Invoke through the Spring proxy so @Async is honoured
-        // Pass the saved Job entity directly to avoid async visibility race
-        // (async thread runs before the creating transaction may be visible to other transactions)
-        self().launchWorkerAsync(job);
+        UUID jobId = job.getId();
+        // Start worker only after this transaction commits so async thread can load the job row
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                self().launchWorkerAsync(jobId);
+            }
+        });
 
         return JobResponse.from(job);
     }
@@ -84,16 +90,17 @@ public class JobService {
     // This is critical: it allows the frontend polling to see RUNNING status
     // while the Docker container is still executing.
     @Async
-    public void launchWorkerAsync(Job job) {
-        if (job == null || job.getId() == null) {
-            log.error("launchWorkerAsync: invalid job provided: {}", job);
+    public void launchWorkerAsync(UUID jobId) {
+        if (jobId == null) {
+            log.error("launchWorkerAsync: invalid job id provided");
             return;
         }
 
-        log.info("launchWorkerAsync: starting async worker for job id={}", job.getId());
+        Job job = findOrThrow(jobId);
+        log.info("launchWorkerAsync: starting async worker for job id={}", jobId);
 
         // Persist RUNNING state in its own transaction — immediately visible to frontend
-        markRunning(job);
+        markRunning(jobId);
 
         // A thread-safe buffer for streaming logs
         StringBuffer logBuffer = new StringBuffer();
@@ -117,7 +124,7 @@ public class JobService {
 
         try {
             DockerWorkerService.WorkerResult result
-                    = dockerWorkerService.runWorker(job.getRepoUrl(), job.getId().toString(), logConsumer);
+                    = dockerWorkerService.runWorker(job.getRepoUrl(), jobId.toString(), logConsumer);
 
             // Flush remaining logs before completion
             String remainingLogs;
@@ -126,18 +133,18 @@ public class JobService {
                 logBuffer.setLength(0);
             }
             if (!remainingLogs.isEmpty()) {
-                self().appendLogs(job.getId(), remainingLogs);
+                self().appendLogs(jobId, remainingLogs);
             }
 
             if (result.succeeded()) {
-                markCompleted(job, result.containerId(), result.logs());
+                markCompleted(jobId, result.containerId(), result.logs());
             } else {
-                markFailed(job, result.containerId(),
+                markFailed(jobId, result.containerId(),
                         "Container exited with code " + result.exitCode() + "\n" + result.logs());
             }
         } catch (Exception ex) {
-            log.error("Worker failed for job {}: {}", job.getId(), ex.getMessage(), ex);
-            markFailed(job, null, ex.getMessage());
+            log.error("Worker failed for job {}: {}", jobId, ex.getMessage(), ex);
+            markFailed(jobId, null, ex.getMessage());
         }
     }
 
@@ -146,9 +153,8 @@ public class JobService {
     // are immediately visible to frontend polling.
     // -------------------------------------------------------------------------
     @Transactional
-    public void markRunning(Job job) {
-        // Re-fetch from DB to get a managed entity in this transaction
-        Job managed = jobRepository.findById(job.getId()).orElse(job);
+    public void markRunning(UUID jobId) {
+        Job managed = findOrThrow(jobId);
         managed.setStatus(JobStatus.RUNNING);
         managed.setStartedAt(Instant.now());
         managed.setContainerStatus("STARTING");
@@ -157,8 +163,8 @@ public class JobService {
     }
 
     @Transactional
-    public void markCompleted(Job job, String containerId, String finalLogs) {
-        Job managed = jobRepository.findById(job.getId()).orElse(job);
+    public void markCompleted(UUID jobId, String containerId, String finalLogs) {
+        Job managed = findOrThrow(jobId);
         managed.setStatus(JobStatus.COMPLETED);
         managed.setContainerId(containerId);
         managed.setContainerStatus("EXITED");
@@ -191,8 +197,8 @@ public class JobService {
     }
 
     @Transactional
-    public void markFailed(Job job, String containerId, String errorMessage) {
-        Job managed = jobRepository.findById(job.getId()).orElse(job);
+    public void markFailed(UUID jobId, String containerId, String errorMessage) {
+        Job managed = findOrThrow(jobId);
         managed.setStatus(JobStatus.FAILED);
         if (containerId != null) {
             managed.setContainerId(containerId);

@@ -61,7 +61,7 @@ class JobServiceTest {
         when(applicationContext.getBean(JobService.class)).thenReturn(jobService);
         doNothing().when(jobService).launchWorkerAsync(any(UUID.class));
 
-        CreateJobRequest request = new CreateJobRequest("https://github.com/user/repo");
+        CreateJobRequest request = CreateJobRequest.builder().repoUrl("https://github.com/user/repo").build();
         JobResponse response = jobService.createJob(request);
 
         assertThat(response.getStatus()).isEqualTo(JobStatus.QUEUED);
@@ -111,7 +111,7 @@ class JobServiceTest {
     void launchWorkerAsync_marksCompletedOnSuccess() {
         when(jobRepository.findById(sampleJob.getId())).thenReturn(Optional.of(sampleJob));
         when(jobRepository.save(any(Job.class))).thenReturn(sampleJob);
-        when(dockerWorkerService.runWorker(any(), any()))
+        when(dockerWorkerService.runWorker(any(), any(), any()))
                 .thenReturn(new DockerWorkerService.WorkerResult("cid-123", 0, "=== SCAN END ==="));
 
         jobService.launchWorkerAsync(sampleJob.getId());
@@ -124,7 +124,7 @@ class JobServiceTest {
     void launchWorkerAsync_marksFailedOnNonZeroExit() {
         when(jobRepository.findById(sampleJob.getId())).thenReturn(Optional.of(sampleJob));
         when(jobRepository.save(any(Job.class))).thenReturn(sampleJob);
-        when(dockerWorkerService.runWorker(any(), any()))
+        when(dockerWorkerService.runWorker(any(), any(), any()))
                 .thenReturn(new DockerWorkerService.WorkerResult("cid-456", 128, "fatal: repo not found"));
 
         jobService.launchWorkerAsync(sampleJob.getId());

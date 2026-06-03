@@ -61,10 +61,11 @@ management:
         enabled: ${ZIPKIN_EXPORT_ENABLED:false}
 
 docker:
+  host: ${DOCKER_HOST:}
   worker:
-    image: ${DOCKER_WORKER_IMAGE:alpine:latest}
+    image: ${DOCKER_WORKER_IMAGE:ecg-worker:latest}
     network: ${DOCKER_WORKER_NETWORK:bridge}
-    timeout-seconds: ${DOCKER_WORKER_TIMEOUT:300}
+    timeout-seconds: ${DOCKER_WORKER_TIMEOUT:900}
     auto-remove: true
 
 logging:

@@ -10,4 +10,4 @@ spring:
     config:
       server:
         native:
-          search-locations: ${CONFIG_SERVER_SEARCH_LOCATIONS:file:///T:/D-drive/TestCaseGenerator/backend/config-repo}
+          search-locations: ${SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCHLOCATIONS:file:///app/config-repo}
