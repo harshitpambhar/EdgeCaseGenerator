@@ -11,14 +11,14 @@ import org.springframework.stereotype.Component;
 @Setter
 public class DockerWorkerProperties {
 
-    /** Docker image used for the worker container (default: alpine) */
-    private String image = "alpine:latest";
+    /** Docker image used for the worker container */
+    private String image = "ecg-worker:latest";
 
     /** Docker network the worker container joins */
     private String network = "bridge";
 
     /** Max seconds to wait for container to finish before marking FAILED */
-    private int timeoutSeconds = 300;
+    private int timeoutSeconds = 900;
 
     /** Whether to auto-remove the container after it exits */
     private boolean autoRemove = true;

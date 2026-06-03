@@ -155,9 +155,8 @@ public class DockerWorkerService {
     private String createContainer(String repoUrl, String jobId) {
         // Execute the real Python CLI worker, which will clone the repo
         // into an ephemeral directory and run the orchestrator pipeline.
-        List<String> cmd = List.of(
-                "python", "cli_worker.py", jobId, repoUrl
-        );
+        // Image ENTRYPOINT is: python cli_worker.py
+        List<String> cmd = List.of(jobId, repoUrl);
 
         HostConfig hostConfig = HostConfig.newHostConfig()
                 .withNetworkMode(props.getNetwork())
