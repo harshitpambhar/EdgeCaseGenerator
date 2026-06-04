@@ -1,27 +1,29 @@
 services:
-  # ─── PostgreSQL (local) ───────────────────────────────────────────────────
-  postgres:
-    image: postgres:16-alpine
-    container_name: postgres-db
-    environment:
-      POSTGRES_USER: ${DB_USERNAME:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-      POSTGRES_DB: admin_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./backend/postgres-init:/docker-entrypoint-initdb.d:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - tcg-network
-    restart: unless-stopped
+  # NOTE: Local PostgreSQL removed — all services now use shared Neon cloud DB
+  # If you ever need a local DB again, uncomment the postgres service below.
+  # ─── PostgreSQL (local) — DISABLED, using Neon cloud DB ──────────────────
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: postgres-db
+  #   environment:
+  #     POSTGRES_USER: ${DB_USERNAME:-postgres}
+  #     POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+  #     POSTGRES_DB: admin_db
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #     - ./backend/postgres-init:/docker-entrypoint-initdb.d:ro
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres}"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - tcg-network
+  #   restart: unless-stopped
 
-  # ─── pgAdmin (DB viewer) ──────────────────────────────────────────────────
+  # ─── pgAdmin (DB viewer — connects to Neon cloud DB) ──────────────────────
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: pgadmin
@@ -36,14 +38,12 @@ services:
     volumes:
       # Persist pgAdmin state (server registrations, preferences) across restarts
       - pgadmin_data:/var/lib/pgadmin
-      # Pre-configure the PostgreSQL server so you never have to add it manually
+      # Pre-configure the Neon server so you never have to add it manually
       - ./backend/pgadmin-servers.json:/pgadmin4/servers.json:ro
       # Provide the DB password so pgAdmin connects without prompting
       - ./backend/pgadmin-pgpass:/pgpassfile:ro
     networks:
       - tcg-network
-    depends_on:
-      - postgres
     restart: unless-stopped
 
   # ─── Redis (required by api-gateway rate limiter) ──────────────────────────
@@ -120,9 +120,9 @@ services:
       SERVER_PORT: 8081
       CONFIG_SERVER_URL: http://config-server:8888
       EUREKA_DEFAULT_ZONE: http://eureka-server:8761/eureka/
-      AUTH_DB_URL: jdbc:postgresql://postgres:5432/auth_db
-      DB_USERNAME: ${DB_USERNAME:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      AUTH_DB_URL: ${AUTH_DB_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
       JPA_DDL_AUTO: update
       SQL_INIT_MODE: always
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:-internal-secret-key}
@@ -140,8 +140,6 @@ services:
       retries: 5
     restart: unless-stopped
     depends_on:
-      postgres:
-        condition: service_healthy
       eureka-server:
         condition: service_healthy
       config-server:
@@ -159,9 +157,9 @@ services:
       SERVER_PORT: 8082
       CONFIG_SERVER_URL: http://config-server:8888
       EUREKA_DEFAULT_ZONE: http://eureka-server:8761/eureka/
-      USER_DB_URL: jdbc:postgresql://postgres:5432/user_db
-      DB_USERNAME: ${DB_USERNAME:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      USER_DB_URL: ${USER_DB_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
       JPA_DDL_AUTO: update
       SQL_INIT_MODE: always
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:-internal-secret-key}
@@ -178,8 +176,6 @@ services:
       retries: 5
     restart: unless-stopped
     depends_on:
-      postgres:
-        condition: service_healthy
       eureka-server:
         condition: service_healthy
       config-server:
@@ -210,9 +206,9 @@ services:
       SERVER_PORT: 8083
       CONFIG_SERVER_URL: http://config-server:8888
       EUREKA_DEFAULT_ZONE: http://eureka-server:8761/eureka/
-      JOB_DB_URL: jdbc:postgresql://postgres:5432/job_db
-      DB_USERNAME: ${DB_USERNAME:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      JOB_DB_URL: ${JOB_DB_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
       JPA_DDL_AUTO: update
       EUREKA_CLIENT_ENABLED: "true"
       ZIPKIN_EXPORT_ENABLED: "false"
@@ -237,8 +233,6 @@ services:
     depends_on:
       ecg-worker:
         condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
       eureka-server:
         condition: service_healthy
       config-server:
@@ -345,8 +339,6 @@ networks:
     driver: bridge
 
 volumes:
-  postgres_data:
-    driver: local
   # Persists pgAdmin server registrations and preferences across restarts
   pgadmin_data:
     driver: local
