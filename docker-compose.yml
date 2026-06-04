@@ -29,8 +29,17 @@ services:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@admin.com}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
       PGADMIN_LISTEN_PORT: 5050
+      # Tell pgAdmin where to find the pre-configured server list
+      PGADMIN_SERVER_JSON_FILE: /pgadmin4/servers.json
     ports:
       - "5050:5050"
+    volumes:
+      # Persist pgAdmin state (server registrations, preferences) across restarts
+      - pgadmin_data:/var/lib/pgadmin
+      # Pre-configure the PostgreSQL server so you never have to add it manually
+      - ./backend/pgadmin-servers.json:/pgadmin4/servers.json:ro
+      # Provide the DB password so pgAdmin connects without prompting
+      - ./backend/pgadmin-pgpass:/pgpassfile:ro
     networks:
       - tcg-network
     depends_on:
@@ -209,7 +218,10 @@ services:
       ZIPKIN_EXPORT_ENABLED: "false"
       DOCKER_HOST: unix:///var/run/docker.sock
       DOCKER_WORKER_IMAGE: ecg-worker:latest
-      DOCKER_WORKER_NETWORK: bridge
+      # Use the compose project network so worker containers get proper DNS
+      # The actual Docker network name is: <project_name>_tcg-network
+      # Override at runtime with: COMPOSE_PROJECT_NAME=edgecasegenerator
+      DOCKER_WORKER_NETWORK: ${COMPOSE_PROJECT_NAME:-edgecasegenerator}_tcg-network
       DOCKER_WORKER_TIMEOUT: 900
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -334,4 +346,7 @@ networks:
 
 volumes:
   postgres_data:
+    driver: local
+  # Persists pgAdmin server registrations and preferences across restarts
+  pgadmin_data:
     driver: local

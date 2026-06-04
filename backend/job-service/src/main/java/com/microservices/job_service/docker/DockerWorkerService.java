@@ -118,38 +118,76 @@ public class DockerWorkerService {
     // Private helpers
     // -------------------------------------------------------------------------
     /**
-     * Pulls the worker Docker image if it is not available locally. This
-     * prevents createContainerCmd from failing with "image not found".
+     * Ensures the worker Docker image is available locally.
+     *
+     * <p>For <em>locally-built</em> images (no registry host in the name, e.g.
+     * {@code ecg-worker:latest}) we never attempt a Docker Hub pull — the image
+     * simply does not exist there. Instead we fail fast with an actionable message
+     * telling the developer to rebuild via {@code docker compose build}.
+     *
+     * <p>For proper registry images (containing a {@code /} with a dot or port in
+     * the first segment, e.g. {@code ghcr.io/myorg/ecg-worker:latest}) we attempt
+     * to pull normally.
      */
     private void pullImageIfMissing(String jobId) {
         String image = props.getImage();
-        log.info("STEP 2 — [job={}] Checking/pulling image: {}", jobId, image);
+        log.info("STEP 2 — [job={}] Checking image availability: {}", jobId, image);
 
+        // ── 1. Check local image store first ──────────────────────────────────
         try {
-            // Check if image exists locally first
-            try {
-                dockerClient.inspectImageCmd(image).exec();
-                log.info("STEP 2 — [job={}] Image already present locally: {}", jobId, image);
-                return;
-            } catch (com.github.dockerjava.api.exception.NotFoundException e) {
-                log.info("STEP 2 — [job={}] Image not found locally, pulling: {}", jobId, image);
-            }
+            dockerClient.inspectImageCmd(image).exec();
+            log.info("STEP 2 — [job={}] Image already present locally: {}", jobId, image);
+            return; // nothing to do
+        } catch (com.github.dockerjava.api.exception.NotFoundException localMiss) {
+            log.warn("STEP 2 — [job={}] Image not found locally: {}", jobId, image);
+        }
 
-            // Pull the image
+        // ── 2. Decide whether to pull or abort ────────────────────────────────
+        if (isLocalOnlyImage(image)) {
+            // Local images (e.g. ecg-worker:latest) are built by 'docker compose build'
+            // and will never exist on Docker Hub. Pulling would only waste time and produce
+            // a confusing "repository does not exist" error.
+            throw new DockerOperationException(
+                    "Worker image '" + image + "' is not in the local Docker image store. "
+                    + "Rebuild it with:  docker compose build ecg-worker");
+        }
+
+        // ── 3. Attempt to pull from the registry ──────────────────────────────
+        log.info("STEP 2 — [job={}] Pulling image from registry: {}", jobId, image);
+        try {
             dockerClient.pullImageCmd(image)
                     .exec(new PullImageResultCallback())
                     .awaitCompletion(120, TimeUnit.SECONDS);
-
             log.info("STEP 2 — [job={}] Image pulled successfully: {}", jobId, image);
-
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
             throw new DockerOperationException("Image pull interrupted for " + image, ex);
         } catch (com.github.dockerjava.api.exception.NotFoundException ex) {
-            throw new DockerOperationException("Image not found: " + image, ex);
+            throw new DockerOperationException("Image not found in registry: " + image, ex);
         } catch (Exception ex) {
             throw new DockerOperationException("Failed to pull image " + image + ": " + ex.getMessage(), ex);
         }
+    }
+
+    /**
+     * Returns {@code true} when {@code image} refers to a locally-built image
+     * that has no remote registry (e.g. {@code ecg-worker:latest} or
+     * {@code myapp:1.0}).
+     *
+     * <p>A registry host always contains either a dot ({@code .}) or a colon
+     * ({@code :}) in the first path segment, or is {@code localhost}. Plain
+     * names like {@code ecg-worker} have no such prefix.
+     */
+    private static boolean isLocalOnlyImage(String image) {
+        // Strip tag
+        String name = image.contains(":") ? image.substring(0, image.lastIndexOf(':')) : image;
+        if (!name.contains("/")) {
+            // Single-component name — always local (e.g. "ecg-worker")
+            return true;
+        }
+        String firstSegment = name.substring(0, name.indexOf('/'));
+        // Registry hosts contain a dot or colon, or are "localhost"
+        return !firstSegment.contains(".") && !firstSegment.contains(":") && !firstSegment.equals("localhost");
     }
 
     private String createContainer(String repoUrl, String jobId) {

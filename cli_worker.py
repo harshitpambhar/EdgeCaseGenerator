@@ -47,16 +47,26 @@ def main():
     temp_dir = tempfile.mkdtemp(prefix=f"repo_{job_id}_", dir=base_tmp)
     try:
         log.info(f"Cloning {repo_url} into {temp_dir}")
-        subprocess.check_call(
-            ["git", "clone", "--depth", "1", repo_url, temp_dir],
-            stdout=subprocess.DEVNULL, 
-            stderr=subprocess.DEVNULL
+        # Clone into a 'repo' subdirectory so git never complains about
+        # an already-existing target directory (mkdtemp creates the parent).
+        repo_dir = os.path.join(temp_dir, "repo")
+        result = subprocess.run(
+            ["git", "clone", "--depth", "1", repo_url, repo_dir],
+            capture_output=True,
+            text=True,
+            timeout=120,
         )
+        if result.returncode != 0:
+            log.error("git clone failed (exit %d):\nSTDOUT: %s\nSTDERR: %s",
+                      result.returncode, result.stdout, result.stderr)
+            raise RuntimeError(
+                f"git clone failed for {repo_url}: {result.stderr.strip() or result.stdout.strip()}"
+            )
         
         log.info("Running pipeline analysis...")
         result = run_pipeline(
             job_id=job_id,
-            repo_path=temp_dir,
+            repo_path=repo_dir,
             run_tests=True,
             run_coverage_flag=True
         )
