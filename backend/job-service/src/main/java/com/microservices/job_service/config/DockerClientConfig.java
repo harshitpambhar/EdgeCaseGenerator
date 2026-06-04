@@ -28,13 +28,17 @@ public class DockerClientConfig {
                 .withDockerHost(dockerHost)
                 .build();
 
+        // NOTE: OkDockerHttpClient.Builder takes timeouts in MILLISECONDS (docker-java 3.3.x).
+        // The old values (10, 30) meant 10 ms connect / 30 ms read — far too short,
+        // causing every inspectImageCmd() call to fail with "Error while executing Request".
         DockerHttpClient httpClient = new OkDockerHttpClient.Builder()
                 .dockerHost(config.getDockerHost())
                 .sslConfig(config.getSSLConfig())
-                .connectTimeout(10)
-                .readTimeout(30)
+                .connectTimeout(30_000)   // 30 seconds
+                .readTimeout(120_000)     // 120 seconds (image inspect / log streaming)
                 .build();
 
         return DockerClientImpl.getInstance(config, httpClient);
     }
 }
+
