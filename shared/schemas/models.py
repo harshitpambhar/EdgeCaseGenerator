@@ -10,10 +10,25 @@ from typing import Any, TypedDict
 
 # ── Parser output ─────────────────────────────────────────────────────────────
 
-class FunctionSchema(TypedDict):
+class ParameterDetail(TypedDict, total=False):
+    name: str
+    type: str
+    default_value: Any
+
+
+class FunctionSchema(TypedDict, total=False):
     name: str
     parameters: list[str]
+    parameter_details: list[ParameterDetail]
+    return_type: str | None
+    docstring: str
     conditions: list[str]
+    branch_conditions: list[str]
+    comparison_operators: list[str]
+    literal_values: list[Any]
+    allowed_values: dict[str, list[Any]]
+    default_values: dict[str, Any]
+    exceptions_detail: list[str]
     loops: int
     returns: int
     exceptions: int
@@ -33,8 +48,16 @@ class ParsedFileSchema(TypedDict):
 
 # ── Edge-case output ──────────────────────────────────────────────────────────
 
-class FunctionEdgeCases(TypedDict):
+class FunctionEdgeCases(TypedDict, total=False):
     name: str
+    parameters: list[str]
+    parameter_details: list[ParameterDetail]
+    return_type: str | None
+    docstring: str
+    exceptions_detail: list[str]
+    allowed_values: dict[str, list[Any]]
+    complexity_score: int
+    priority: str
     edge_cases: dict[str, list[Any]]   # condition → list of values
 
 
@@ -45,7 +68,7 @@ class EdgeCaseSchema(TypedDict):
 
 # ── Generated test ────────────────────────────────────────────────────────────
 
-class GeneratedTest(TypedDict):
+class GeneratedTest(TypedDict, total=False):
     function: str
     test_name: str
     condition: str | None
@@ -53,6 +76,12 @@ class GeneratedTest(TypedDict):
     language: str
     framework: str
     code: str
+    assertion_kind: str
+    exception_type: str | None
+    quality_score: int
+    purpose: str
+    source_file: str          # absolute path of the source file this test covers
+    relative_source: str      # repo-relative path  e.g. src/auth/login.py
 
 
 class TestGenerationSchema(TypedDict):

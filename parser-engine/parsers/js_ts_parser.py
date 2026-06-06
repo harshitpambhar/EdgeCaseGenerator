@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 _ROOT = Path(__file__).resolve().parents[2]  # repo root (parsers/ → parser-engine/ → root)
 if str(_ROOT) not in sys.path:
@@ -62,6 +63,87 @@ def _extract_throws_regex(source: str) -> int:
     return len(re.findall(r"\bthrow\b", source))
 
 
+def _extract_thrown_types(source: str) -> list[str]:
+    """Extract class names from 'throw new X(...)' expressions."""
+    types: list[str] = []
+    for m in re.finditer(r"throw\s+new\s+([A-Za-z_][A-Za-z0-9_]*)", source):
+        name = m.group(1)
+        if name not in types:
+            types.append(name)
+    return types or (["Error"] if _extract_throws_regex(source) else [])
+
+def _extract_literal_metadata(source: str) -> tuple[list[str], dict[str, list[Any]], list[Any], list[str], dict[str, Any], list[dict[str, Any]], str | None]:
+    allowed_values: dict[str, list[Any]] = {}
+    literals: list[Any] = []
+    conditions: list[str] = []
+    operators: list[str] = []
+    default_values: dict[str, Any] = {}
+    parameter_details: list[dict[str, Any]] = []
+    return_type: str | None = None
+
+    compare_patterns = [
+        re.compile(r"([A-Za-z_][A-Za-z0-9_]*)\s*(===|==|!==|!=|>=|<=|>|<)\s*(['\"])(.*?)\3"),
+        re.compile(r"([A-Za-z_][A-Za-z0-9_]*)\s*(===|==|!==|!=|>=|<=|>|<)\s*(-?\d+(?:\.\d+)?)"),
+        re.compile(r"([A-Za-z_][A-Za-z0-9_]*)\s*(===|==|!==|!=)\s*(true|false|null)", re.IGNORECASE),
+    ]
+    for pattern in compare_patterns:
+        for match in pattern.finditer(source):
+            name = match.group(1)
+            op = match.group(2)
+            raw_value = match.group(match.lastindex)
+            if raw_value is None:
+                continue
+            value: Any
+            if isinstance(raw_value, str) and raw_value.lower() in {"true", "false"}:
+                value = raw_value.lower() == "true"
+            elif isinstance(raw_value, str) and raw_value.lower() == "null" or raw_value == "None":
+                value = None
+            else:
+                try:
+                    value = int(raw_value)
+                except Exception:
+                    try:
+                        value = float(raw_value)
+                    except Exception:
+                        value = raw_value
+            allowed_values.setdefault(name, []).append(value)
+            literals.append(value)
+            conditions.append(match.group(0))
+            operators.append(op)
+
+    parameter_matches = re.finditer(
+        r"([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([A-Za-z_][A-Za-z0-9_<>,\[\]\| ]+)(?:\s*=\s*([^,\)]+))?",
+        source,
+    )
+    for match in parameter_matches:
+        default_raw = match.group(3)
+        default_value = default_raw.strip() if default_raw else None
+        parameter_details.append(
+            {
+                "name": match.group(1),
+                "type": match.group(2).strip(),
+                "default_value": default_value,
+            }
+        )
+        if default_value is not None:
+            default_values[match.group(1)] = default_value
+
+    # Return-type: handle TS annotation ): Type {, arrow => Type {, and plain ) {
+    return_type_match = re.search(
+        r"\)\s*:\s*([A-Za-z_][A-Za-z0-9_<>,\[\]\| .]+?)\s*(?:\{|=>|$)",
+        source,
+        re.MULTILINE,
+    )
+    if return_type_match:
+        return_type = return_type_match.group(1).strip()
+
+    conditions = list(dict.fromkeys(conditions))
+    operators = list(dict.fromkeys(operators))
+    literals = list(dict.fromkeys(literals))
+    allowed_values = {key: list(dict.fromkeys(values)) for key, values in allowed_values.items()}
+    return conditions, allowed_values, literals, operators, default_values, parameter_details, return_type
+
+
 # ── regex-based fallback ──────────────────────────────────────────────────────
 
 _FUNC_RE = re.compile(
@@ -84,11 +166,22 @@ def _parse_regex(source_code: str, language: str) -> list[FunctionSchema]:
         start = m.start()
         body = source_code[start : start + 2000]
         conditions = _extract_conditions_regex(body)
+        semantic_conditions, allowed_values, literals, operators, default_values, parameter_details, return_type = _extract_literal_metadata(body)
+        merged_conditions = list(dict.fromkeys(conditions + semantic_conditions))
+        param_details = parameter_details or [{"name": p, "type": None, "default_value": None} for p in params]
         functions.append(
             FunctionSchema(
                 name=name,
                 parameters=params,
-                conditions=conditions,
+            parameter_details=param_details,
+            return_type=return_type,
+            conditions=merged_conditions,
+            branch_conditions=merged_conditions,
+            comparison_operators=operators,
+            literal_values=literals,
+            allowed_values=allowed_values,
+            default_values=default_values,
+            exceptions_detail=_extract_thrown_types(body),
                 loops=_extract_loops_regex(body),
                 returns=_extract_returns_regex(body),
                 exceptions=_extract_throws_regex(body),
@@ -122,6 +215,7 @@ def _parse_ts_node(node, source_bytes: bytes) -> FunctionSchema | None:
 
     body_text = source_bytes[node.start_byte:node.end_byte].decode(errors="replace")
     conditions = _extract_conditions_regex(body_text)
+    semantic_conditions, allowed_values, literals, operators, default_values, parameter_details, return_type = _extract_literal_metadata(body_text)
     loops = _extract_loops_regex(body_text)
     returns = _extract_returns_regex(body_text)
     throws = _extract_throws_regex(body_text)
@@ -129,7 +223,15 @@ def _parse_ts_node(node, source_bytes: bytes) -> FunctionSchema | None:
     return FunctionSchema(
         name=name,
         parameters=params,
-        conditions=conditions,
+        parameter_details=parameter_details or [{"name": p, "type": None, "default_value": None} for p in params],
+        return_type=return_type,
+        conditions=list(dict.fromkeys(conditions + semantic_conditions)),
+        branch_conditions=list(dict.fromkeys(conditions + semantic_conditions)),
+        comparison_operators=operators,
+        literal_values=literals,
+        allowed_values=allowed_values,
+        default_values=default_values,
+        exceptions_detail=_extract_thrown_types(body_text),
         loops=loops,
         returns=returns,
         exceptions=throws,
