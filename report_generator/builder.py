@@ -48,6 +48,16 @@ def build_report(
     functions_detected: int,
 ) -> PipelineResponse:
     recommendations = _collect_recommendations(risk, coverage)
+    
+    # Filter out execution logs to reduce JSON size
+    execution_summary = {
+        "passed": execution.get("passed", 0),
+        "failed": execution.get("failed", 0),
+        "errors": execution.get("errors", []),
+        "logs": [],  # Remove logs from report
+        "duration_seconds": execution.get("duration_seconds", 0.0),
+    }
+    
     report = PipelineResponse(
         job_id=job_id,
         languages_detected=scan["languages_detected"],
@@ -56,7 +66,7 @@ def build_report(
         coverage=coverage,
         risk_analysis=risk["functions"],
         recommendations=recommendations,
-        execution_results=execution,
+        execution_results=execution_summary,
     )
     log.info(
         "Report built — job=%s functions=%d tests=%d coverage=%.1f%%",

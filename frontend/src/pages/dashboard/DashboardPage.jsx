@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { HiOutlineBeaker, HiOutlineCode, HiOutlineChartBar, HiOutlineLightningBolt, HiOutlineClock, HiOutlineArrowRight, HiOutlineCloudUpload, HiOutlineDocumentReport } from 'react-icons/hi';
+import { HiOutlineBeaker, HiOutlineCode, HiOutlineChartBar, HiOutlineLightningBolt, HiOutlineClock, HiOutlineArrowRight, HiOutlineCloudUpload, HiOutlineDocumentReport, HiOutlineDownload } from 'react-icons/hi';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
 import AnalyticsCard from '../../components/dashboard/AnalyticsCard';
 import RepoCard from '../../components/dashboard/RepoCard';
@@ -145,11 +145,13 @@ export default function DashboardPage() {
             ? 'Medium'
             : 'Low';
         return {
+          id: job.id,
           name: repoName,
           language: languages[0] || 'Unknown',
           coverage: typeof coverage === 'number' ? Math.round(coverage) : 0,
           risk: riskLevel,
           lastAnalyzed: job.createdAt ? formatRelativeTime(job.createdAt) : 'Unknown',
+          status: job.status,
         };
       });
   }, [parsedJobs]);
