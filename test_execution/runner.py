@@ -144,6 +144,6 @@ def execute_tests(
         passed=passed,
         failed=failed,
         errors=errors,
-        logs=stdout.splitlines()[-50:],   # last 50 lines
+        logs=[],  # Don't store logs
         duration_seconds=round(duration, 3),
     )

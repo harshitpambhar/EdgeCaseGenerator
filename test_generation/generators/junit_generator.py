@@ -64,6 +64,8 @@ def generate_junit_tests(
     class_name: str = "Subject",
 ) -> list[GeneratedTest]:
     tests: list[GeneratedTest] = []
+    source_file = edge_cases.get("source_file", "unknown")
+    
     for fn_entry in edge_cases["functions"]:
         func = fn_entry["name"]
         for condition, values in fn_entry["edge_cases"].items():
@@ -79,6 +81,7 @@ def generate_junit_tests(
                         language="java",
                         framework="junit",
                         code=code,
+                        source_file=source_file,
                     )
                 )
     return tests

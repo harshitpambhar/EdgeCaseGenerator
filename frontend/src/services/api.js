@@ -107,6 +107,7 @@ export const jobService = {
   getAll: () => api.get('/jobs'),
   getByUser: (email) => api.get(`/jobs/user/${email}`),
   remove: (id) => api.delete(`/jobs/${id}`),
+  downloadTests: (id) => api.get(`/jobs/${id}/download`, { responseType: 'blob' }),
 };
 
 export const reportService = {

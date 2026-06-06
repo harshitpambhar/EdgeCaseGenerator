@@ -305,21 +305,30 @@ Starts: PostgreSQL, Redis, RabbitMQ, MinIO
 - Boundary test cases
 - Security test suggestions
 
-### 5. **Coverage Analysis**
+### 5. **Structured Test Download** ⭐ NEW
+- Download tests with preserved directory structure
+- Language-specific naming conventions
+- Ready-to-use test files
+- Includes manifest and summary
+- Multi-language support (Python, JS, TS, Java)
+
+📖 **See**: [Download Quick Reference](DOWNLOAD_QUICK_REFERENCE.md) | [Feature Docs](test_generation/DOWNLOAD_FEATURE.md)
+
+### 6. **Coverage Analysis**
 - Line coverage tracking
 - Branch coverage analysis
 - Path coverage optimization
 - Coverage gap identification
 - Recommendations for improvement
 
-### 6. **Risk Scoring**
+### 7. **Risk Scoring**
 - Cyclomatic complexity analysis
 - Nesting depth detection
 - Function length assessment
 - Dependency counting
 - Bug probability prediction
 
-### 7. **Mutation Testing**
+### 8. **Mutation Testing**
 - Artificial mutation injection
 - Test robustness validation
 - Mutation kill rate analysis
@@ -418,6 +427,12 @@ POST /api/ml/predict-edge-cases
   "code": "def divide(a, b): return a/b",
   "language": "python"
 }
+```
+
+### Download Generated Tests
+```bash
+GET /api/jobs/{jobId}/download
+# Returns: {jobId}_tests.zip with structured test files
 ```
 
 ---

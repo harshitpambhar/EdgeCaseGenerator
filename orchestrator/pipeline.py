@@ -272,6 +272,11 @@ def run_pipeline(
     if not report:
         raise RuntimeError("Report building failed")
 
+    # Save report for download endpoint
+    report_file = layout.reports_dir / "report.json"
+    import json
+    report_file.write_text(json.dumps(report, indent=2))
+
     log.info("Pipeline complete for job %s", job_id)
     log.info("Workspace layout: %s", layout)
     return report

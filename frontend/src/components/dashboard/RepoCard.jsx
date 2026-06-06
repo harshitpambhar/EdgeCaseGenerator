@@ -1,6 +1,8 @@
 import { motion } from 'framer-motion';
-import { HiOutlineCode } from 'react-icons/hi';
+import { HiOutlineCode, HiOutlineDownload } from 'react-icons/hi';
 import { VscGitMerge } from 'react-icons/vsc';
+import { jobService, getErrorMessage } from '../../services/api';
+import { useState } from 'react';
 
 const riskStyle = {
   Low:    'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
@@ -8,7 +10,31 @@ const riskStyle = {
   High:   'text-rose-400 bg-rose-500/10 border-rose-500/20',
 };
 
-export default function RepoCard({ name, language, stars, coverage, risk, lastAnalyzed, delay = 0 }) {
+export default function RepoCard({ id, name, language, stars, coverage, risk, lastAnalyzed, status, delay = 0 }) {
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async (e) => {
+    e.stopPropagation();
+    if (!id || status !== 'COMPLETED') return;
+    
+    setDownloading(true);
+    try {
+      const response = await jobService.downloadTests(id);
+      const url = window.URL.createObjectURL(response.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${id}_tests.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      alert(getErrorMessage(error));
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -26,9 +52,21 @@ export default function RepoCard({ name, language, stars, coverage, risk, lastAn
             <p className="text-xs text-white/30 mt-0.5">{lastAnalyzed}</p>
           </div>
         </div>
-        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${riskStyle[risk] || riskStyle.Low}`}>
-          {risk}
-        </span>
+        <div className="flex items-center gap-2">
+          {status === 'COMPLETED' && (
+            <button
+              onClick={handleDownload}
+              disabled={downloading}
+              className="w-6 h-6 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 flex items-center justify-center text-indigo-400 transition-colors border-none cursor-pointer disabled:opacity-50"
+              title="Download tests"
+            >
+              <HiOutlineDownload className="text-xs" />
+            </button>
+          )}
+          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${riskStyle[risk] || riskStyle.Low}`}>
+            {risk}
+          </span>
+        </div>
       </div>
 
       <div className="flex items-center gap-3 text-xs text-white/30 mb-3">

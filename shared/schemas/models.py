@@ -53,6 +53,7 @@ class GeneratedTest(TypedDict):
     language: str
     framework: str
     code: str
+    source_file: str
 
 
 class TestGenerationSchema(TypedDict):
