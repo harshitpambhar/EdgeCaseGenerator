@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+  pipeline-api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - LOG_LEVEL=INFO
+      - TEMP_WORKSPACE_ROOT=/tmp/ecg_workspaces
+      - TEST_EXECUTION_TIMEOUT=120
+      - GIT_CLONE_DEPTH=1
+      - MAX_FILE_SIZE_BYTES=1048576
+    volumes:
+      - /tmp/ecg_workspaces:/tmp/ecg_workspaces
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

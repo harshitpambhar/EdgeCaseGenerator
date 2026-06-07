@@ -37,7 +37,7 @@ const severityColors = {
 };
 
 const allTypes = ['All', 'Functional', 'Edge Case', 'API', 'Security'];
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 10;
 
 export default function TestCasesPage() {
   const [search, setSearch] = useState('');
@@ -140,13 +140,24 @@ export default function TestCasesPage() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-xs text-white/30">Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}</p>
-          <div className="flex gap-1">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-              <button key={p} onClick={() => setPage(p)}
-                className={`w-8 h-8 rounded-lg text-xs font-medium transition-all border-none cursor-pointer ${page === p ? 'bg-indigo-500 text-white' : 'bg-white/[0.04] text-white/40 hover:text-white hover:bg-white/[0.08]'}`}>
-                {p}
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex gap-1">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="w-14 h-8 rounded-lg text-xs font-medium transition-all border-none cursor-pointer disabled:opacity-30 bg-white/[0.04] text-white/40 hover:text-white hover:bg-white/[0.08] flex items-center justify-center"
+              >
+                Prev
               </button>
-            ))}
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="w-14 h-8 rounded-lg text-xs font-medium transition-all border-none cursor-pointer disabled:opacity-30 bg-white/[0.04] text-white/40 hover:text-white hover:bg-white/[0.08] flex items-center justify-center"
+              >
+                Next
+              </button>
+            </div>
+            <p className="text-[10px] text-white/30">Page {page} of {totalPages}</p>
           </div>
         </div>
       )}

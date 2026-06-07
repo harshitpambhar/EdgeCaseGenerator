@@ -1,36 +1,10 @@
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Link, useParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Activity, Target, Globe, Zap } from 'lucide-react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, Cell, PieChart, Pie } from 'recharts';
-
-const coverageMetrics = [
-  { name: 'Routes', coverage: 89, tested: 45, total: 50, icon: Target },
-  { name: 'Components', coverage: 84, tested: 42, total: 50, icon: Activity },
-  { name: 'APIs', coverage: 76, tested: 38, total: 50, icon: Globe },
-  { name: 'Workflows', coverage: 91, tested: 46, total: 50, icon: Zap },
-];
-
-const routeCoverage = [
-  { path: '/dashboard', coverage: 95 },
-  { path: '/upload', coverage: 88 },
-  { path: '/projects', coverage: 82 },
-  { path: '/testcases', coverage: 91 },
-  { path: '/automation', coverage: 79 },
-  { path: '/executions', coverage: 85 },
-  { path: '/reports', coverage: 93 },
-];
-
-const untestedModules = [
-  { module: 'Admin Settings Page', type: 'UI', risk: 'Low', suggestion: 'Add e2e tests for admin panel' },
-  { module: 'Export to PDF', type: 'Feature', risk: 'Medium', suggestion: 'Create tests for PDF export functionality' },
-  { module: 'Webhook Handlers', type: 'API', risk: 'High', suggestion: 'Write integration tests for webhook processing' },
-  { module: 'Cache Layer', type: 'System', risk: 'High', suggestion: 'Add performance and cache invalidation tests' },
-];
-
-const pieData = [
-  { name: 'Covered', value: 78, color: '#22c55e' },
-  { name: 'Uncovered', value: 22, color: '#ef4444' },
-];
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, PieChart, Pie } from 'recharts';
+import { useAuth } from '../../context/AuthContext';
+import { jobService, getErrorMessage } from '../../services/api';
 
 const ChartTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
@@ -47,7 +21,121 @@ const ChartTooltip = ({ active, payload, label }) => {
 };
 
 export default function CoverageReportPage() {
-  const { id } = useParams();
+  const { user } = useAuth();
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!user?.email) {
+      setJobs([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError('');
+    jobService.getByUser(user.email)
+      .then(({ data }) => setJobs(Array.isArray(data) ? data : []))
+      .catch((err) => setError(getErrorMessage(err)))
+      .finally(() => setLoading(false));
+  }, [user?.email]);
+
+  const parsedJobs = useMemo(() => jobs.map((job) => {
+    let parsed = null;
+    if (job.resultJson) {
+      try { parsed = JSON.parse(job.resultJson); } catch { parsed = null; }
+    }
+    return { ...job, parsedResult: parsed };
+  }), [jobs]);
+
+  const coverageSummary = useMemo(() => {
+    let coverageSum = 0;
+    let coverageCount = 0;
+    let coveredFunctions = 0;
+    let uncoveredFunctions = 0;
+    parsedJobs.forEach((job) => {
+      const coverage = job.parsedResult?.coverage;
+      const percent = coverage?.coverage_percent;
+      if (typeof percent === 'number') {
+        coverageSum += percent;
+        coverageCount += 1;
+      }
+      if (typeof coverage?.covered_functions_count === 'number') {
+        coveredFunctions += coverage.covered_functions_count;
+      } else if (Array.isArray(coverage?.covered_functions)) {
+        coveredFunctions += coverage.covered_functions.length;
+      }
+      if (typeof coverage?.uncovered_functions_count === 'number') {
+        uncoveredFunctions += coverage.uncovered_functions_count;
+      } else if (Array.isArray(coverage?.uncovered_functions)) {
+        uncoveredFunctions += coverage.uncovered_functions.length;
+      }
+    });
+
+    const avgCoverage = coverageCount ? Math.round(coverageSum / coverageCount) : 0;
+    return {
+      avgCoverage,
+      coveredFunctions,
+      uncoveredFunctions,
+      reposWithCoverage: coverageCount,
+    };
+  }, [parsedJobs]);
+
+  const repoCoverage = useMemo(() => {
+    return parsedJobs
+      .map((job) => {
+        const repoName = (job.repoUrl || '').replace(/\.git$/, '').split('/').pop() || job.repoUrl || 'Repository';
+        const coverage = job.parsedResult?.coverage?.coverage_percent;
+        return {
+          name: repoName,
+          coverage: typeof coverage === 'number' ? Math.round(coverage) : 0,
+        };
+      })
+      .sort((a, b) => b.coverage - a.coverage)
+      .slice(0, 7);
+  }, [parsedJobs]);
+
+  const pieData = useMemo(() => {
+    const covered = coverageSummary.coveredFunctions;
+    const uncovered = coverageSummary.uncoveredFunctions;
+    const total = covered + uncovered || 1;
+    return [
+      { name: 'Covered', value: Math.round((covered / total) * 100), color: '#22c55e' },
+      { name: 'Uncovered', value: Math.round((uncovered / total) * 100), color: '#ef4444' },
+    ];
+  }, [coverageSummary]);
+
+  const untestedModules = useMemo(() => {
+    const modules = [];
+    parsedJobs.forEach((job) => {
+      const list = job.parsedResult?.coverage?.uncovered_functions;
+      if (Array.isArray(list)) {
+        list.forEach((name) => modules.push(name));
+      }
+    });
+    const unique = Array.from(new Set(modules));
+    return unique.slice(0, 6).map((name) => {
+      const lowered = name.toLowerCase();
+      const risk = lowered.includes('auth') || lowered.includes('payment') || lowered.includes('security')
+        ? 'High'
+        : lowered.includes('user') || lowered.includes('account') || lowered.includes('order')
+          ? 'Medium'
+          : 'Low';
+      return {
+        module: name,
+        type: 'Function',
+        risk,
+        suggestion: `Add tests for ${name}`,
+      };
+    });
+  }, [parsedJobs]);
+
+  const coverageMetrics = useMemo(() => ([
+    { name: 'Avg Coverage', coverage: coverageSummary.avgCoverage, tested: coverageSummary.coveredFunctions, total: coverageSummary.coveredFunctions + coverageSummary.uncoveredFunctions, icon: Target },
+    { name: 'Covered Functions', coverage: coverageSummary.coveredFunctions, tested: coverageSummary.coveredFunctions, total: coverageSummary.coveredFunctions + coverageSummary.uncoveredFunctions, icon: Activity },
+    { name: 'Uncovered Functions', coverage: coverageSummary.uncoveredFunctions, tested: coverageSummary.uncoveredFunctions, total: coverageSummary.coveredFunctions + coverageSummary.uncoveredFunctions, icon: Globe },
+    { name: 'Repos with Coverage', coverage: coverageSummary.reposWithCoverage, tested: coverageSummary.reposWithCoverage, total: parsedJobs.length, icon: Zap },
+  ]), [coverageSummary, parsedJobs.length]);
 
   return (
     <div className="max-w-5xl space-y-6 pb-8">
@@ -66,6 +154,13 @@ export default function CoverageReportPage() {
         <p className="text-white/40">Overall test coverage breakdown and untested module recommendations</p>
       </div>
 
+      {loading && (
+        <div className="text-xs text-white/40">Loading coverage data...</div>
+      )}
+      {!loading && error && (
+        <div className="text-xs text-rose-400">{error}</div>
+      )}
+
       {/* Coverage Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {coverageMetrics.map((metric, i) => {
@@ -80,16 +175,18 @@ export default function CoverageReportPage() {
             >
               <div className="flex items-center justify-between mb-3">
                 <Icon className="text-indigo-400 text-lg" />
-                <span className="text-2xl font-bold text-white">{metric.coverage}%</span>
+                <span className="text-2xl font-bold text-white">
+                  {metric.name === 'Avg Coverage' ? `${metric.coverage}%` : metric.coverage}
+                </span>
               </div>
               <p className="text-xs text-white/40 mb-2">{metric.name}</p>
               <p className="text-xs text-white/30">
-                {metric.tested} / {metric.total} tested
+                {metric.total ? `${metric.tested} / ${metric.total}` : 'No data'}
               </p>
               <div className="h-1.5 rounded-full bg-white/[0.05] mt-3 overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
-                  whileInView={{ width: `${metric.coverage}%` }}
+                  whileInView={{ width: `${metric.name === 'Avg Coverage' ? metric.coverage : metric.total ? (metric.tested / metric.total) * 100 : 0}%` }}
                   transition={{ delay: i * 0.1 + 0.3, duration: 0.8 }}
                   className="h-full bg-gradient-to-r from-indigo-500 to-rose-500"
                 />
@@ -107,15 +204,18 @@ export default function CoverageReportPage() {
           whileInView={{ opacity: 1, y: 0 }}
           className="p-5 rounded-xl bg-white/[0.02] border border-white/[0.08]"
         >
-          <h3 className="text-sm font-semibold text-white mb-4">Route Coverage</h3>
+          <h3 className="text-sm font-semibold text-white mb-4">Repository Coverage</h3>
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={routeCoverage} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <XAxis dataKey="path" tick={{ fill: '#fff', fontSize: 11, opacity: 0.5 }} />
+            <BarChart data={repoCoverage} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <XAxis dataKey="name" tick={{ fill: '#fff', fontSize: 11, opacity: 0.5 }} />
               <YAxis tick={{ fill: '#fff', fontSize: 11, opacity: 0.5 }} />
               <Tooltip content={<ChartTooltip />} />
               <Bar dataKey="coverage" fill="#6366f1" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
+          {!loading && repoCoverage.length === 0 && (
+            <p className="text-xs text-white/40 mt-3">No coverage data yet.</p>
+          )}
         </motion.div>
 
         {/* Overall Coverage */}
@@ -148,11 +248,11 @@ export default function CoverageReportPage() {
           <div className="flex justify-center gap-6 mt-2 text-xs">
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-              <span className="text-white/60">Covered: 78%</span>
+              <span className="text-white/60">Covered: {pieData[0].value}%</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-              <span className="text-white/60">Uncovered: 22%</span>
+              <span className="text-white/60">Uncovered: {pieData[1].value}%</span>
             </div>
           </div>
         </motion.div>
@@ -188,6 +288,9 @@ export default function CoverageReportPage() {
               <p className="text-xs text-indigo-300/80 mt-2">💡 {item.suggestion}</p>
             </div>
           ))}
+          {!loading && untestedModules.length === 0 && (
+            <p className="text-xs text-white/40">No uncovered functions reported yet.</p>
+          )}
         </div>
       </motion.div>
 

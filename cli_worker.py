@@ -81,10 +81,7 @@ def main():
         log.error(f"Worker failed: {e}", exc_info=True)
         sys.exit(1)
     finally:
-        # Do NOT delete temp_dir — ml-api serves the generated tests
-        # for download from this workspace. The directory is left on the
-        # shared ecg_workspaces volume so /api/download/{job_id} can find it.
-        log.info("Worker finished. Workspace retained at %s", temp_dir)
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
 if __name__ == "__main__":
     main()

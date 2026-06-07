@@ -1,26 +1,15 @@
 """
-Orchestrator pipeline — coordinates every service end-to-end.
+Stateless orchestration pipeline for mounted repositories.
 
-Flow:
-  1. Clone repository → temp workspace
-  2. Scan repository
-  3. Parse each source file (language-aware)
-  4. Generate edge cases
-  5. Generate tests
-  6. Write test files
-  7. Execute tests
-  8. Run coverage
-  9. Run risk analysis
-  10. Build unified report
-  11. Cleanup temp workspace
-  12. Return PipelineResponse
+The pipeline coordinates parsing, edge-case generation, test generation,
+test execution, coverage analysis, risk analysis, and report assembly.
+It never clones repositories, creates host temp workspaces, or manages
+persistent infrastructure.
 """
 from __future__ import annotations
 
-import shutil
+import importlib
 import sys
-import tempfile
-import uuid
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parent.parent
@@ -30,7 +19,9 @@ if str(_ROOT) not in sys.path:
 from bootstrap import bootstrap
 bootstrap()
 
-from shared.config.settings import TEMP_WORKSPACE_ROOT
+from orchestrator.error_recovery import ExecutionTracker
+from orchestrator.pipeline_stages import analyze_repository_intelligence, parse_files_parallel
+from orchestrator.workspace_manager import build_workspace_layout
 from shared.schemas.models import (
     CoverageSchema,
     ExecutionResult,
@@ -40,80 +31,47 @@ from shared.schemas.models import (
     RiskAnalysisSchema,
     ScanResult,
 )
-from shared.utils.file_io import write_json
 from shared.utils.logger import get_logger
 
 log = get_logger(__name__)
 
 
-# ── service imports (after bootstrap) ────────────────────────────────────────
-# Imported at function call time to avoid circular path issues at module load.
+def _require_callable(module_name: str, attr_name: str):
+    """Import a callable and fail loudly if it cannot be loaded."""
+    log.info("Loading service callable %s.%s", module_name, attr_name)
+    try:
+        module = importlib.import_module(module_name)
+    except Exception as exc:
+        log.error("Failed to import service module %s: %s", module_name, exc, exc_info=True)
+        raise ImportError(f"Failed to import service module {module_name}: {exc}") from exc
+
+    try:
+        value = getattr(module, attr_name)
+    except AttributeError as exc:
+        log.error("Module %s does not export %s", module_name, attr_name, exc_info=True)
+        raise ImportError(f"Module {module_name} does not export {attr_name}") from exc
+
+    if not callable(value):
+        raise TypeError(f"Export {module_name}.{attr_name} is not callable")
+    return value
+
 
 def _services():
-    """Return all service callables as a named tuple-like dict."""
-    from git_cloner import clone_repository
-    from scanner import scan_repository
-
-    # parser-engine/dispatcher.py  (parse_file)
-    import importlib, sys as _sys
-    # Force load from parser-engine dir
-    _pe = str(_ROOT / "parser-engine")
-    if _pe not in _sys.path:
-        _sys.path.insert(0, _pe)
-    _parser_dispatcher = importlib.import_module("dispatcher")
-
-    # edge-case-engine/generator.py
-    _ece = str(_ROOT / "edge-case-engine")
-    if _ece not in _sys.path:
-        _sys.path.insert(0, _ece)
-    _edge_gen = importlib.import_module("generator")
-
-    # test-generation/dispatcher.py
-    _tg = str(_ROOT / "test-generation")
-    if _tg not in _sys.path:
-        _sys.path.insert(0, _tg)
-    _test_dispatcher = importlib.import_module("dispatcher")
-
-    # test-execution
-    _te = str(_ROOT / "test-execution")
-    if _te not in _sys.path:
-        _sys.path.insert(0, _te)
-    _test_writer = importlib.import_module("test_writer")
-    _test_runner = importlib.import_module("runner")
-
-    # coverage-analysis
-    _ca = str(_ROOT / "coverage-analysis")
-    if _ca not in _sys.path:
-        _sys.path.insert(0, _ca)
-    _cov_runner = importlib.import_module("runner")
-
-    # risk-analysis
-    _ra = str(_ROOT / "risk-analysis")
-    if _ra not in _sys.path:
-        _sys.path.insert(0, _ra)
-    _risk_analyzer = importlib.import_module("analyzer")
-
-    # report-generator
-    _rg = str(_ROOT / "report-generator")
-    if _rg not in _sys.path:
-        _sys.path.insert(0, _rg)
-    _report_builder = importlib.import_module("builder")
+    """Return all service callables required by the pipeline."""
+    from repository_scanner.scanner import scan_repository
 
     return {
-        "clone":        clone_repository,
-        "scan":         scan_repository,
-        "parse_file":   _parser_dispatcher.parse_file,
-        "edge_cases":   _edge_gen.generate_edge_cases_for_file,
-        "gen_tests":    _test_dispatcher.generate_tests,
-        "write_tests":  _test_writer.write_test_file,
-        "exec_tests":   _test_runner.execute_tests,
-        "coverage":     _cov_runner.run_coverage,
-        "risk":         _risk_analyzer.analyze_risk,
-        "report":       _report_builder.build_report,
+        "scan": scan_repository,
+        "parse_file": _require_callable("parser_engine.dispatcher", "parse_file"),
+        "edge_cases": _require_callable("edge_case_engine.generator", "generate_edge_cases_for_file"),
+        "gen_tests": _require_callable("test_generation.dispatcher", "generate_tests"),
+        "write_tests": _require_callable("test_execution.test_writer", "write_test_file"),
+        "exec_tests": _require_callable("test_execution.runner", "execute_tests"),
+        "coverage": _require_callable("coverage_analysis.runner", "run_coverage"),
+        "risk": _require_callable("risk_analysis.analyzer", "analyze_risk"),
+        "report": _require_callable("report_generator.builder", "build_report"),
     }
 
-
-# ── empty result helpers ──────────────────────────────────────────────────────
 
 def _empty_execution() -> ExecutionResult:
     return ExecutionResult(passed=0, failed=0, errors=[], logs=[], duration_seconds=0.0)
@@ -122,9 +80,12 @@ def _empty_execution() -> ExecutionResult:
 def _empty_coverage() -> CoverageSchema:
     return CoverageSchema(
         coverage_percent=0.0,
-        covered_functions=[], uncovered_functions=[],
-        covered_functions_count=0, uncovered_functions_count=0,
-        uncovered_branches=[], missing_lines=[],
+        covered_functions=[],
+        uncovered_functions=[],
+        covered_functions_count=0,
+        uncovered_functions_count=0,
+        uncovered_branches=[],
+        missing_lines=[],
         recommendation="Coverage not run",
     )
 
@@ -133,134 +94,189 @@ def _empty_risk() -> RiskAnalysisSchema:
     return RiskAnalysisSchema(functions=[])
 
 
-# ── main pipeline ─────────────────────────────────────────────────────────────
+def _aggregate_execution_results(results: list[ExecutionResult]) -> ExecutionResult:
+    """Combine execution results from multiple languages."""
+    return ExecutionResult(
+        passed=sum(result["passed"] for result in results),
+        failed=sum(result["failed"] for result in results),
+        errors=[error for result in results for error in result["errors"]],
+        logs=[line for result in results for line in result["logs"]],
+        duration_seconds=round(sum(result["duration_seconds"] for result in results), 3),
+    )
+
+
+def _collect_all_functions(parsed_files: list[ParsedFileSchema]) -> list[dict]:
+    """Collect all functions from parsed files for risk analysis."""
+    functions: list[dict] = []
+    for parsed in parsed_files:
+        for function in parsed.get("functions", []):
+            functions.append({**function, "source_file": parsed["source_file"]})
+    return functions
+
 
 def run_pipeline(
-    repo_url: str,
     *,
+    job_id: str,
+    repo_path: str | Path,
     run_tests: bool = True,
     run_coverage_flag: bool = True,
-    output_dir: Path | None = None,
+    language: str | None = None,
+    enable_repo_intelligence: bool = True,
+    enable_parallel_parsing: bool = True,
+    max_parse_workers: int = 4,
 ) -> PipelineResponse:
     """
-    Execute the full analysis pipeline for a GitHub repository.
+    Execute the analysis pipeline for a mounted repository path.
 
-    Parameters
-    ----------
-    repo_url          : GitHub (or any git) repository URL.
-    run_tests         : Whether to execute generated tests.
-    run_coverage_flag : Whether to run coverage analysis.
-    output_dir        : Optional directory to persist the final report JSON.
-
-    Returns
-    -------
-    PipelineResponse (dict)
+    The repository must already exist locally inside the container or mounted
+    workspace. The pipeline only performs analysis and returns structured JSON.
     """
+    repo_dir = Path(repo_path).expanduser().resolve()
+    if not repo_dir.is_dir():
+        raise ValueError(f"Repository path does not exist: {repo_dir}")
+
+    layout = build_workspace_layout(repo_dir).ensure_directories()
     svc = _services()
-    job_id = str(uuid.uuid4())
-    log.info("=== Pipeline START  job=%s  repo=%s ===", job_id, repo_url)
+    tracker = ExecutionTracker(job_id)
 
-    tmp_root = TEMP_WORKSPACE_ROOT
-    try:
-        tmp_root.mkdir(parents=True, exist_ok=True)
-    except Exception:
-        tmp_root = None
+    if language:
+        log.info("Requested language hint for job %s: %s", job_id, language)
 
-    workspace = Path(tempfile.mkdtemp(
-        prefix=f"ecg_{job_id[:8]}_",
-        dir=str(tmp_root) if tmp_root else None,
-    ))
-    repo_dir = workspace / "repo"
+    repo_intelligence = None
+    all_parsed: list[ParsedFileSchema] = []
+    all_tests: list[GeneratedTest] = []
+    execution = _empty_execution()
+    coverage = _empty_coverage()
+    risk: RiskAnalysisSchema = _empty_risk()
 
-    try:
-        # ── 1. Clone ──────────────────────────────────────────────────────────
-        svc["clone"](repo_url, repo_dir)
+    scan: ScanResult = tracker.execute_stage("scan", lambda: svc["scan"](repo_dir))
+    if not scan:
+        raise RuntimeError("Repository scan failed")
 
-        # ── 2. Scan ───────────────────────────────────────────────────────────
-        scan: ScanResult = svc["scan"](repo_dir)
-        log.info("Scan: %d files, languages=%s", scan["total_files"], scan["languages_detected"])
+    log.info("Scan complete: %d files across %s", scan["total_files"], scan["languages_detected"])
 
-        # ── 3 → 5. Parse → Edge Cases → Tests ────────────────────────────────
-        all_parsed:  list[ParsedFileSchema] = []
-        all_tests:   list[GeneratedTest]    = []
-        functions_detected = 0
+    if enable_repo_intelligence:
+        repo_intelligence = tracker.execute_stage(
+            "repo_intelligence",
+            lambda: analyze_repository_intelligence(repo_dir),
+        )
+        if repo_intelligence:
+            log.info("Repository intelligence: %s", repo_intelligence)
 
-        for scanned_file in scan["files"]:
-            parsed = svc["parse_file"](scanned_file["path"], scanned_file["language"])
-            if parsed is None:
-                continue
-            all_parsed.append(parsed)
-            functions_detected += parsed["function_count"]
+    def stage_parse() -> list[ParsedFileSchema]:
+        if enable_parallel_parsing and len(scan["files"]) > 1:
+            def parse_scanned_file(scanned_file):
+                try:
+                    return svc["parse_file"](scanned_file["path"], scanned_file["language"])
+                except Exception as exc:
+                    raise RuntimeError(f"Failed to parse {scanned_file['path']}: {exc}") from exc
 
-            edge_cases = svc["edge_cases"](parsed)
-            tests = svc["gen_tests"](edge_cases, scanned_file["language"])
-            all_tests.extend(tests)
-
-        log.info("Functions: %d | Tests generated: %d", functions_detected, len(all_tests))
-
-        # ── 6 & 7. Write + Execute (per language) ─────────────────────────────
-        execution: ExecutionResult = _empty_execution()
-        coverage:  CoverageSchema  = _empty_coverage()
-
-        by_language: dict[str, list[GeneratedTest]] = {}
-        for t in all_tests:
-            by_language.setdefault(t["language"], []).append(t)
-
-        for lang, lang_tests in by_language.items():
-            test_file = svc["write_tests"](lang_tests, workspace / "tests", lang)
-
-            if run_tests:
-                exec_result = svc["exec_tests"](test_file, lang, workspace)
-                execution = ExecutionResult(
-                    passed=execution["passed"] + exec_result["passed"],
-                    failed=execution["failed"] + exec_result["failed"],
-                    errors=execution["errors"] + exec_result["errors"],
-                    logs=execution["logs"] + exec_result["logs"],
-                    duration_seconds=round(
-                        execution["duration_seconds"] + exec_result["duration_seconds"], 3
-                    ),
-                )
-
-            if run_coverage_flag and lang == "python":
-                coverage = svc["coverage"](test_file, lang, repo_dir, workspace)
-
-        # ── 8. Risk analysis ──────────────────────────────────────────────────
-        risk: RiskAnalysisSchema = _empty_risk()
-        if all_parsed:
-            merged_functions = [fn for p in all_parsed for fn in p["functions"]]
-            merged_parsed = ParsedFileSchema(
-                source_file="<merged>",
-                language="mixed",
-                function_count=len(merged_functions),
-                functions=merged_functions,
+            parsed, errors = parse_files_parallel(
+                scan["files"],
+                parse_scanned_file,
+                max_workers=max_parse_workers,
             )
-            risk = svc["risk"](merged_parsed)
+            if errors:
+                log.warning("Parse errors in %d files", len(errors))
+            return parsed
 
-        # ── 9. Build report ───────────────────────────────────────────────────
-        report = svc["report"](
+        parsed_files: list[ParsedFileSchema] = []
+        for scanned_file in scan["files"]:
+            try:
+                parsed = svc["parse_file"](scanned_file["path"], scanned_file["language"])
+                if parsed is not None:
+                    parsed_files.append(parsed)
+            except Exception as exc:
+                log.warning("Parse error for %s: %s", scanned_file["path"], exc)
+        return parsed_files
+
+    all_parsed = tracker.execute_stage("parse", stage_parse) or []
+    functions_detected = sum(parsed["function_count"] for parsed in all_parsed)
+    log.info("Parsed %d files with %d functions", len(all_parsed), functions_detected)
+
+    def stage_generate_tests() -> list[GeneratedTest]:
+        generated: list[GeneratedTest] = []
+        for parsed in all_parsed:
+            edge_cases = svc["edge_cases"](parsed)
+            generated.extend(svc["gen_tests"](edge_cases, parsed["language"]))
+        return generated
+
+    all_tests = tracker.execute_stage("generate_tests", stage_generate_tests) or []
+    log.info("Generated %d tests", len(all_tests))
+
+    by_language: dict[str, list[GeneratedTest]] = {}
+    for test in all_tests:
+        by_language.setdefault(test["language"], []).append(test)
+
+    execution_results: list[ExecutionResult] = []
+    for lang, lang_tests in by_language.items():
+        test_dir = layout.generated_tests_dir / lang
+
+        test_file = tracker.execute_stage(
+            f"write_tests_{lang}",
+            lambda lang_tests=lang_tests, test_dir=test_dir, lang=lang: svc["write_tests"](lang_tests, test_dir, lang),
+        )
+
+        if not test_file:
+            continue
+
+        if run_tests:
+            exec_result = tracker.execute_stage(
+                f"exec_tests_{lang}",
+                lambda test_file=test_file, lang=lang: svc["exec_tests"](test_file, lang, repo_dir),
+            )
+            if exec_result:
+                execution_results.append(exec_result)
+
+        if run_coverage_flag and lang == "python":
+            coverage = tracker.execute_stage(
+                f"coverage_{lang}",
+                lambda test_file=test_file, lang=lang: svc["coverage"](
+                    test_file,
+                    lang,
+                    repo_dir,
+                    repo_dir,
+                    output_dir=layout.coverage_dir,
+                ),
+            ) or _empty_coverage()
+
+    if execution_results:
+        execution = _aggregate_execution_results(execution_results)
+
+    def stage_risk_analysis() -> RiskAnalysisSchema:
+        if not all_parsed:
+            return _empty_risk()
+        merged_functions = _collect_all_functions(all_parsed)
+        merged_parsed = ParsedFileSchema(
+            source_file="<merged>",
+            language="mixed",
+            function_count=len(merged_functions),
+            functions=merged_functions,
+        )
+        return svc["risk"](merged_parsed)
+
+    risk = tracker.execute_stage("risk_analysis", stage_risk_analysis) or _empty_risk()
+
+    report = tracker.execute_stage(
+        "build_report",
+        lambda: svc["report"](
             job_id=job_id,
-            repo_url=repo_url,
             scan=scan,
             generated_tests=all_tests,
             coverage=coverage,
             risk=risk,
             execution=execution,
             functions_detected=functions_detected,
-        )
+        ),
+    )
+    if not report:
+        raise RuntimeError("Report building failed")
 
-        # ── 10. Persist (optional) ────────────────────────────────────────────
-        if output_dir:
-            out = Path(output_dir)
-            out.mkdir(parents=True, exist_ok=True)
-            write_json(out / f"{job_id}.json", report)
-            log.info("Report saved → %s/%s.json", output_dir, job_id)
+    # Save report for download endpoint
+    report_file = layout.reports_dir / "report.json"
+    import json
+    report_file.write_text(json.dumps(report, indent=2))
 
-        log.info("=== Pipeline DONE  job=%s ===", job_id)
-        return report
-
-    except Exception as exc:
-        log.exception("Pipeline failed for job=%s: %s", job_id, exc)
-        raise
-    finally:
-        shutil.rmtree(workspace, ignore_errors=True)
-        log.info("Workspace cleaned: %s", workspace)
+    log.info("Pipeline complete for job %s", job_id)
+    log.info("Workspace layout: %s", layout)
+    return report

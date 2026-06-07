@@ -1,0 +1,13 @@
+server:
+  port: ${CONFIG_SERVER_PORT:8888}
+
+spring:
+  application:
+    name: config-server
+  profiles:
+    active: ${CONFIG_SERVER_PROFILE:native}
+  cloud:
+    config:
+      server:
+        native:
+          search-locations: ${SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCHLOCATIONS:file:///app/config-repo}

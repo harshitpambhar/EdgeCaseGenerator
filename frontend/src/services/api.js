@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 // Calls the API Gateway directly. CORS is handled by the gateway (allowedOrigins: http://localhost:5173).
-// For production, set VITE_API_URL to your deployed gateway URL.
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+// For production/docker, set VITE_API_URL to your deployed gateway URL.
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://api-gateway:8080/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -13,7 +13,7 @@ const api = axios.create({
 export function getErrorMessage(error) {
   if (!error.response) {
     if (error.code === 'ERR_CANCELED') return 'Request was canceled.';
-    return 'Cannot reach the API Gateway. Ensure it is running on http://localhost:8080.';
+    return 'Cannot reach the API Gateway. Ensure it is running on http://api-gateway:8080 or check your VITE_API_URL configuration.';
   }
   const { status, data } = error.response;
   if (data?.errors && typeof data.errors === 'object') {
@@ -66,7 +66,7 @@ api.interceptors.response.use(
 
 export const authService = {
   login: (credentials) => api.post('/auth/login', credentials),
-  signup: (userData) => api.post('/auth/register', userData),
+  signup: (userData) => api.post('/auth/signup', userData),
   getCurrentUser: () => api.get('/auth/me'),
 };
 
@@ -98,6 +98,16 @@ export const executionService = {
   run: (projectId, payload) => api.post(`/projects/${projectId}/executions/run`, payload),
   retry: (executionId) => api.post(`/executions/${executionId}/retry`),
   getLogs: (executionId) => api.get(`/executions/${executionId}/logs`),
+};
+
+// Job Service — talks to Spring Boot job-service via API Gateway
+export const jobService = {
+  create: (repoUrl, userName, userEmail) => api.post('/jobs', { repoUrl, userName, userEmail }),
+  getById: (id) => api.get(`/jobs/${id}`),
+  getAll: () => api.get('/jobs'),
+  getByUser: (email) => api.get(`/jobs/user/${email}`),
+  remove: (id) => api.delete(`/jobs/${id}`),
+  downloadTests: (id) => api.get(`/jobs/${id}/download`, { responseType: 'blob' }),
 };
 
 export const reportService = {

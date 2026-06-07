@@ -76,12 +76,7 @@ class GeneratedTest(TypedDict, total=False):
     language: str
     framework: str
     code: str
-    assertion_kind: str
-    exception_type: str | None
-    quality_score: int
-    purpose: str
-    source_file: str          # absolute path of the source file this test covers
-    relative_source: str      # repo-relative path  e.g. src/auth/login.py
+    source_file: str
 
 
 class TestGenerationSchema(TypedDict):
@@ -149,7 +144,6 @@ class ScanResult(TypedDict):
 
 class PipelineResponse(TypedDict):
     job_id: str
-    repository: str
     languages_detected: list[str]
     functions_detected: int
     generated_tests: list[GeneratedTest]

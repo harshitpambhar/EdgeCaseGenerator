@@ -9,9 +9,7 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.PullImageResultCallback;
 import com.github.dockerjava.api.command.WaitContainerResultCallback;
-import com.github.dockerjava.api.model.Bind;
 import com.github.dockerjava.api.model.HostConfig;
-import com.github.dockerjava.api.model.Volume;
 import com.microservices.job_service.config.DockerWorkerProperties;
 import com.microservices.job_service.exception.DockerOperationException;
 
@@ -193,20 +191,14 @@ public class DockerWorkerService {
     }
 
     private String createContainer(String repoUrl, String jobId) {
+        // Execute the real Python CLI worker, which will clone the repo
+        // into an ephemeral directory and run the orchestrator pipeline.
+        // Image ENTRYPOINT is: python cli_worker.py
         List<String> cmd = List.of(jobId, repoUrl);
-
-        // Mount the shared workspace volume so generated tests are visible
-        // to ml-api for download after the worker exits.
-        String workspaceVolume = System.getenv().getOrDefault(
-                "WORKER_WORKSPACE_VOLUME", "ecg_workspaces");
-        String containerWorkspacePath = "/tmp/ecg_workspaces";
-        Bind workspaceBind = new Bind(workspaceVolume,
-                new Volume(containerWorkspacePath));
 
         HostConfig hostConfig = HostConfig.newHostConfig()
                 .withNetworkMode(props.getNetwork())
-                .withBinds(workspaceBind)
-                .withAutoRemove(false);
+                .withAutoRemove(false);   // we remove manually after log collection
 
         try {
             CreateContainerResponse container = dockerClient

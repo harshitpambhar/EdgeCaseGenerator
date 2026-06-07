@@ -1,0 +1,104 @@
+# Development Configuration for API Gateway
+spring:
+  application:
+    name: api-gateway
+  main:
+    web-application-type: reactive
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      timeout: 3000ms
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: auth-service
+              uri: lb://auth-service
+              predicates:
+                - Path=/api/auth/**
+              filters:
+                - name: RequestIdFilter
+                - name: LoggingFilter
+            - id: user-service
+              uri: lb://user-service
+              predicates:
+                - Path=/api/users/**
+              filters:
+                - name: RequestIdFilter
+                - name: LoggingFilter
+                - name: JwtAuthenticationFilter
+                - name: RateLimitingFilter
+            - id: job-service
+              uri: lb://job-service
+              predicates:
+                - Path=/api/jobs/**
+              filters:
+                - name: RequestIdFilter
+                - name: LoggingFilter
+                - name: JwtAuthenticationFilter
+                - name: RateLimitingFilter
+            - id: project-service
+              uri: lb://project-service
+              predicates:
+                - Path=/api/projects/**
+              filters:
+                - name: RequestIdFilter
+                - name: LoggingFilter
+                - name: JwtAuthenticationFilter
+                - name: RateLimitingFilter
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+
+server:
+  port: 8080
+  shutdown: graceful
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${random.int[10000,99999]}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus,gateway
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+jwt:
+  secret: ${JWT_SECRET:dev-jwt-secret-must-be-at-least-32-chars-long!!}
+  expiration: 86400
+  validation-url: http://auth-service:8080/api/auth/validate
+
+rate-limit:
+  enabled: true
+  per-user-limit: 1000
+  per-ip-limit: 10000
+  window-duration-minutes: 1
+
+logging:
+  level:
+    root: INFO
+    com.microservices: DEBUG
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.security: DEBUG
+  pattern:
+    console: "[%d{yyyy-MM-dd HH:mm:ss}] [%thread] [%X{requestId}] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/api-gateway.log
