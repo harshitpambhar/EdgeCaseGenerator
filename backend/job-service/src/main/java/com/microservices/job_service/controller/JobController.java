@@ -9,6 +9,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -69,8 +71,9 @@ public class JobController {
     @Operation(summary = "Download generated tests for a job")
     public ResponseEntity<Resource> downloadTests(@PathVariable UUID id) {
         try {
-            // Forward to Python ML service download endpoint
-            String mlServiceUrl = "http://localhost:8000/api/download/" + id.toString();
+            // Forward to Python ML service download endpoint (allowing docker network override)
+            String mlServiceBase = System.getenv("ML_SERVICE_URL") != null ? System.getenv("ML_SERVICE_URL") : "http://localhost:8000";
+            String mlServiceUrl = mlServiceBase + "/api/download/" + id.toString();
             Resource resource = restTemplate.getForObject(mlServiceUrl, Resource.class);
             
             if (resource == null || !resource.exists()) {
@@ -82,6 +85,10 @@ public class JobController {
                     .header(HttpHeaders.CONTENT_DISPOSITION, 
                             "attachment; filename=\"" + id + "_tests.zip\"")
                     .body(resource);
+        } catch (HttpStatusCodeException e) {
+            return ResponseEntity.status(e.getStatusCode())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(new ByteArrayResource(e.getResponseBodyAsByteArray()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }

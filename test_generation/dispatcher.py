@@ -167,6 +167,7 @@ def generate_tests(
 
         filtered_edge_cases = {
             "source_file": edge_cases["source_file"],
+            "relative_source": edge_cases.get("relative_source"),
             "functions": filtered_functions,
         }
         if not filtered_edge_cases["functions"]:

@@ -63,6 +63,26 @@ def main():
                 f"git clone failed for {repo_url}: {result.stderr.strip() or result.stdout.strip()}"
             )
         
+        # Register the job paths in registry JSON for persistence
+        from datetime import datetime
+        registry_path = os.path.join(base_tmp, "job_registry.json")
+        try:
+            registry = {}
+            if os.path.exists(registry_path):
+                with open(registry_path, "r") as f:
+                    registry = json.load(f)
+            registry[job_id] = {
+                "repo_path": repo_dir,
+                "workspace_root": temp_dir,
+                "generated_tests_dir": os.path.join(temp_dir, "generated_tests"),
+                "reports_dir": os.path.join(temp_dir, "reports"),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            with open(registry_path, "w") as f:
+                json.dump(registry, f, indent=2)
+        except Exception as e:
+            log.warning("Failed to register job paths: %s", e)
+            
         log.info("Running pipeline analysis...")
         result = run_pipeline(
             job_id=job_id,
@@ -81,7 +101,9 @@ def main():
         log.error(f"Worker failed: {e}", exc_info=True)
         sys.exit(1)
     finally:
-        shutil.rmtree(temp_dir, ignore_errors=True)
+        # DO NOT remove the workspace folder to keep it available for zip downloads
+        # shutil.rmtree(temp_dir, ignore_errors=True)
+        pass
 
 if __name__ == "__main__":
     main()

@@ -1,5 +1,6 @@
 """
 JUnit 5 (Java) test generator.
+Uses the language-agnostic behavior analyzer to generate behavior-driven assertions.
 """
 from __future__ import annotations
 
@@ -13,6 +14,7 @@ if str(_ROOT) not in sys.path:
 
 from shared.schemas.models import EdgeCaseSchema, GeneratedTest
 from shared.utils.logger import get_logger
+from test_generation.behavior_analyzer import generate_behavior_test_plans, _normalize_return_type
 
 log = get_logger(__name__)
 
@@ -40,36 +42,29 @@ def _java_repr(value: Any) -> str:
     return "null"
 
 
-def _normalize_return_type(return_type: Any) -> str:
-    if not return_type:
-        return "unknown"
-    text = str(return_type).strip().lower()
-    if any(token in text for token in ("list", "array", "tuple", "set")):
-        return "list"
-    if any(token in text for token in ("dict", "map", "object", "json")):
-        return "object"
-    if "bool" in text:
-        return "boolean"
-    if any(token in text for token in ("str", "string", "text")):
-        return "string"
-    if any(token in text for token in ("int", "float", "number", "decimal", "long")):
-        return "number"
-    return "unknown"
-
-
-def _assertion_lines(return_type: Any) -> tuple[list[str], str]:
+def _assertion_lines(return_type: Any, expected_value: Any, classification: str) -> list[str]:
     normalized = _normalize_return_type(return_type)
+    
+    if expected_value is True:
+        return ["        assertTrue(result);"]
+    if expected_value is False:
+        return ["        assertFalse(result);"]
+        
     if normalized == "list":
-        return (["        assertTrue(result instanceof java.util.List);"], "semantic:list")
+        return ["        assertTrue(result instanceof java.util.List);"]
     if normalized == "object":
-        return (["        assertTrue(result instanceof java.util.Map);"], "semantic:object")
+        return ["        assertTrue(result instanceof java.util.Map);"]
     if normalized == "boolean":
-        return (["        assertTrue(result || !result);"], "semantic:boolean")
+        return ["        assertTrue(result || !result);"]
     if normalized == "string":
-        return (["        assertTrue(result instanceof String);"], "semantic:string")
+        return ["        assertTrue(result instanceof String);"]
     if normalized == "number":
-        return (["        assertTrue(result == result);"], "semantic:number")
-    return (["        assertNotNull(result);"], "fallback:not_null")
+        lines = ["        assertTrue(result instanceof Number);"]
+        if classification == "Calculation":
+            lines.append("        assertTrue(((Number) result).doubleValue() >= 0);")
+        return lines
+        
+    return ["        assertNotNull(result);"]
 
 
 def _exception_class_name(exception_type: str) -> str:
@@ -88,10 +83,34 @@ def _exception_class_name(exception_type: str) -> str:
     return "RuntimeException"
 
 
-def _render_exception_junit(func_name: str, case: Any, test_name: str, class_name: str, exception_type: str) -> str:
-    arg = _java_repr(case)
+def _get_java_package(relative_source: str | None) -> str:
+    if not relative_source:
+        return ""
+    path_str = relative_source.replace("\\", "/")
+    for prefix in ["src/main/java/", "src/test/java/"]:
+        if prefix in path_str:
+            parts = path_str.split(prefix)[1].split("/")[:-1]
+            if parts:
+                return f"package {'.'.join(parts)};\n\n"
+            return ""
+            
+    parts = path_str.split("/")[:-1]
+    if parts:
+        return f"package {'.'.join(parts)};\n\n"
+    return ""
+
+
+def _render_exception_junit(
+    func_name: str,
+    args_str: str,
+    test_name: str,
+    class_name: str,
+    exception_type: str,
+    package_stmt: str
+) -> str:
     exception_class = _exception_class_name(exception_type)
     lines = [
+        package_stmt,
         "import org.junit.jupiter.api.Test;",
         "import static org.junit.jupiter.api.Assertions.*;",
         "",
@@ -99,7 +118,7 @@ def _render_exception_junit(func_name: str, case: Any, test_name: str, class_nam
         "",
         "    @Test",
         f"    void {test_name}() {{",
-        f"        assertThrows({exception_class}.class, () -> {class_name}.{func_name}({arg}));",
+        f"        assertThrows({exception_class}.class, () -> {class_name}.{func_name}({args_str}));",
         "    }",
         "}",
         "",
@@ -107,10 +126,19 @@ def _render_exception_junit(func_name: str, case: Any, test_name: str, class_nam
     return "\n".join(lines)
 
 
-def _render_junit(func_name: str, case: Any, test_name: str, class_name: str, return_type: Any) -> tuple[str, str]:
-    arg = _java_repr(case)
-    assertion_lines, assertion_kind = _assertion_lines(return_type)
+def _render_junit(
+    func_name: str,
+    args_str: str,
+    test_name: str,
+    class_name: str,
+    return_type: Any,
+    expected_value: Any,
+    classification: str,
+    package_stmt: str
+) -> str:
+    assertion_lines = _assertion_lines(return_type, expected_value, classification)
     lines = [
+        package_stmt,
         "import org.junit.jupiter.api.Test;",
         "import static org.junit.jupiter.api.Assertions.*;",
         "",
@@ -118,7 +146,7 @@ def _render_junit(func_name: str, case: Any, test_name: str, class_name: str, re
         "",
         "    @Test",
         f"    void {test_name}() {{",
-        f"        var result = {class_name}.{func_name}({arg});",
+        f"        var result = {class_name}.{func_name}({args_str});",
     ]
     lines.extend(assertion_lines)
     lines += [
@@ -126,7 +154,7 @@ def _render_junit(func_name: str, case: Any, test_name: str, class_name: str, re
         "}",
         "",
     ]
-    return "\n".join(lines), assertion_kind
+    return "\n".join(lines)
 
 
 def generate_junit_tests(
@@ -135,34 +163,56 @@ def generate_junit_tests(
 ) -> list[GeneratedTest]:
     tests: list[GeneratedTest] = []
     source_file = edge_cases.get("source_file", "unknown")
+    relative_source = edge_cases.get("relative_source")
     
+    # Extract package statement and class name dynamically
+    package_stmt = _get_java_package(relative_source)
+    if relative_source and relative_source.endswith(".java"):
+        class_name = Path(relative_source).stem
+        
     for fn_entry in edge_cases["functions"]:
         func = fn_entry["name"]
-        return_type = fn_entry.get("return_type")
-        exception_types = fn_entry.get("exceptions_detail", []) or []
-        for condition, values in fn_entry["edge_cases"].items():
-            is_exception_case = isinstance(condition, str) and condition.startswith("exception:")
-            exception_type = condition.split(":", 1)[1] if is_exception_case and ":" in condition else (exception_types[0] if exception_types else "RuntimeException")
-            for idx, value in enumerate(values):
-                test_name = f"test_{func}_{idx}"
-                if is_exception_case:
-                    code = _render_exception_junit(func, value, test_name, class_name, exception_type)
-                    assertion_kind = f"exception:{exception_type}"
-                    purpose = f"raise:{exception_type}"
+        
+        plans = generate_behavior_test_plans(fn_entry, "java")
+        for plan in plans:
+            test_name = plan["test_name"]
+            inputs = plan["inputs"]
+            expected_behavior = plan["expected_behavior"]
+            expected_val = plan["expected_value"]
+            
+            # Map dictionary inputs to positional arguments based on parameter list
+            args_list = []
+            for p in fn_entry.get("parameters", []):
+                if p in inputs:
+                    args_list.append(inputs[p])
+                elif fn_entry.get("default_values", {}).get(p) is not None:
+                    args_list.append(fn_entry["default_values"][p])
                 else:
-                    code, assertion_kind = _render_junit(func, value, test_name, class_name, return_type)
-                    purpose = f"semantic:{condition}"
-                tests.append(
-                    GeneratedTest(
-                        function=func,
-                        test_name=test_name,
-                        condition=condition,
-                        case=value if not callable(value) else None,
-                        language="java",
-                        framework="junit",
-                        code=code,
-                        source_file=source_file,
-                    )
+                    args_list.append(None)
+                    
+            args_str = ", ".join(_java_repr(v) for v in args_list)
+            
+            if expected_behavior == "raises":
+                code = _render_exception_junit(func, args_str, test_name, class_name, expected_val, package_stmt)
+            else:
+                code = _render_junit(
+                    func, args_str, test_name, class_name,
+                    fn_entry.get("return_type"), expected_val, plan["classification"], package_stmt
                 )
-                log.info("Generated junit test %s for %s (%s)", test_name, func, assertion_kind)
+                
+            tests.append(
+                GeneratedTest(
+                    function=func,
+                    test_name=test_name,
+                    condition=plan["condition_source"],
+                    case=inputs,
+                    language="java",
+                    framework="junit",
+                    code=code,
+                    source_file=source_file,
+                    relative_source=relative_source,
+                )
+            )
+            log.info("Generated junit test %s for %s (score=%d)", test_name, func, plan["quality_score"])
+            
     return tests

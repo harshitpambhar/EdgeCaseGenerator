@@ -10,6 +10,8 @@ import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.PullImageResultCallback;
 import com.github.dockerjava.api.command.WaitContainerResultCallback;
 import com.github.dockerjava.api.model.HostConfig;
+import com.github.dockerjava.api.model.Bind;
+import com.github.dockerjava.api.model.Volume;
 import com.microservices.job_service.config.DockerWorkerProperties;
 import com.microservices.job_service.exception.DockerOperationException;
 
@@ -198,6 +200,7 @@ public class DockerWorkerService {
 
         HostConfig hostConfig = HostConfig.newHostConfig()
                 .withNetworkMode(props.getNetwork())
+                .withBinds(new Bind("/tmp/ecg_workspaces", new Volume("/tmp/ecg_workspaces")))
                 .withAutoRemove(false);   // we remove manually after log collection
 
         try {

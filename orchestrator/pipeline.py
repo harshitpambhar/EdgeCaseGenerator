@@ -198,6 +198,10 @@ def run_pipeline(
         generated: list[GeneratedTest] = []
         for parsed in all_parsed:
             edge_cases = svc["edge_cases"](parsed)
+            abs_path = parsed.get("source_file", "")
+            rel_path = next((f["relative_path"] for f in scan["files"] if f["path"] == abs_path), None)
+            if rel_path:
+                edge_cases["relative_source"] = rel_path
             generated.extend(svc["gen_tests"](edge_cases, parsed["language"]))
         return generated
 

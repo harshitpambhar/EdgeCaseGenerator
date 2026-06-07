@@ -235,6 +235,16 @@ def generate_edge_cases_for_file(parsed: ParsedFileSchema) -> EdgeCaseSchema:
                     ec[condition] = generate_edge_cases_extended(condition)
                 function_cases.append({
                     "name": fn.get("name", f"unknown_{idx}"),
+                    "parameters": fn.get("parameters", []),
+                    "parameter_details": fn.get("parameter_details", []),
+                    "return_type": fn.get("return_type"),
+                    "docstring": fn.get("docstring", ""),
+                    "exceptions_detail": fn.get("exceptions_detail", []),
+                    "allowed_values": fn.get("allowed_values", {}),
+                    "literal_values": fn.get("literal_values", []),
+                    "default_values": fn.get("default_values", {}),
+                    "branch_conditions": fn.get("branch_conditions", []),
+                    "complexity_score": fn.get("complexity_score", 0),
                     "edge_cases": ec
                 })
             except Exception as e:

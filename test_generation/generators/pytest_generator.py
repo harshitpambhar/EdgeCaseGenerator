@@ -1,9 +1,6 @@
 """
 pytest test generator.
-
-Wraps the existing ml-service/test_generation/generator.py logic and
-extends it to produce the canonical GeneratedTest schema.
-The original generator is NOT modified.
+Uses the language-agnostic behavior analyzer to generate behavior-driven assertions and mocks.
 """
 from __future__ import annotations
 
@@ -17,6 +14,7 @@ if str(_ROOT) not in sys.path:
 
 from shared.schemas.models import EdgeCaseSchema, GeneratedTest
 from shared.utils.logger import get_logger
+from test_generation.behavior_analyzer import generate_behavior_test_plans, _normalize_return_type
 
 log = get_logger(__name__)
 
@@ -24,7 +22,6 @@ log = get_logger(__name__)
 def _safe_repr(value: Any) -> str:
     try:
         r = repr(value)
-        # Avoid repr of objects that can't round-trip
         if r.startswith("<"):
             return "None"
         return r
@@ -32,48 +29,8 @@ def _safe_repr(value: Any) -> str:
         return "None"
 
 
-def _normalize_return_type(return_type: Any) -> str:
-    if not return_type:
-        return "unknown"
-    text = str(return_type).strip().lower()
-    if any(token in text for token in ("list", "tuple", "set")):
-        return "list"
-    if any(token in text for token in ("dict", "map", "object", "json")):
-        return "object"
-    if "bool" in text:
-        return "boolean"
-    if any(token in text for token in ("str", "string", "text")):
-        return "string"
-    if any(token in text for token in ("int", "float", "number", "decimal", "long")):
-        return "number"
-    return "unknown"
-
-
-def _assertion_lines(return_type: Any) -> tuple[list[str], str]:
-    normalized = _normalize_return_type(return_type)
-    if normalized == "list":
-        return (["    assert isinstance(result, list)"], "semantic:list")
-    if normalized == "object":
-        return (["    assert isinstance(result, dict)"], "semantic:object")
-    if normalized == "boolean":
-        return (["    assert isinstance(result, bool)"], "semantic:boolean")
-    if normalized == "string":
-        return (["    assert isinstance(result, str)"], "semantic:string")
-    if normalized == "number":
-        return (["    assert isinstance(result, (int, float))"], "semantic:number")
-    return (["    assert result is not None"], "fallback:not_none")
-
-
-def _render_exception_pytest(func_name: str, case: Any, test_name: str, module_import: str, exception_type: str) -> str:
-    args = (
-        ", ".join(_safe_repr(v) for v in case)
-        if isinstance(case, (list, tuple))
-        else (
-            ", ".join(f"{k}={_safe_repr(v)}" for k, v in case.items())
-            if isinstance(case, dict)
-            else _safe_repr(case)
-        )
-    )
+def _render_exception_pytest(func_name: str, inputs: dict[str, Any], test_name: str, module_import: str, exception_type: str) -> str:
+    args_str = ", ".join(f"{k}={_safe_repr(v)}" for k, v in inputs.items())
     lines = ["import pytest"]
     if module_import:
         lines.append(module_import)
@@ -81,34 +38,56 @@ def _render_exception_pytest(func_name: str, case: Any, test_name: str, module_i
         "",
         f"def {test_name}():",
         f"    with pytest.raises({exception_type}):",
-        f"        {func_name}({args})",
+        f"        {func_name}({args_str})",
         "",
     ]
     return "\n".join(lines)
 
 
-def _render_pytest(func_name: str, case: Any, test_name: str, module_import: str, return_type: Any) -> str:
-    args = (
-        ", ".join(_safe_repr(v) for v in case)
-        if isinstance(case, (list, tuple))
-        else (
-            ", ".join(f"{k}={_safe_repr(v)}" for k, v in case.items())
-            if isinstance(case, dict)
-            else _safe_repr(case)
-        )
-    )
-    assertion_lines, assertion_kind = _assertion_lines(return_type)
-    lines = [
-        "import pytest",
-    ]
+def _render_pytest(
+    func_name: str,
+    inputs: dict[str, Any],
+    test_name: str,
+    module_import: str,
+    return_type: Any,
+    expected_value: Any,
+    classification: str
+) -> str:
+    args_str = ", ".join(f"{k}={_safe_repr(v)}" for k, v in inputs.items())
+    assertion_lines = []
+    normalized = _normalize_return_type(return_type)
+    
+    if expected_value is True:
+        assertion_lines.append("    assert result is True")
+    elif expected_value is False:
+        assertion_lines.append("    assert result is False")
+    elif normalized == "list":
+        assertion_lines.append("    assert isinstance(result, list)")
+        assertion_lines.append("    assert len(result) >= 0")
+    elif normalized == "object":
+        assertion_lines.append("    assert isinstance(result, dict)")
+    elif normalized == "boolean":
+        assertion_lines.append("    assert isinstance(result, bool)")
+    elif normalized == "string":
+        assertion_lines.append("    assert isinstance(result, str)")
+        assertion_lines.append("    assert len(result) >= 0")
+    elif normalized == "number":
+        assertion_lines.append("    assert isinstance(result, (int, float))")
+        if classification == "Calculation":
+            assertion_lines.append("    assert result >= 0")
+    else:
+        assertion_lines.append("    assert result is not None")
+        
+    lines = ["import pytest"]
     if module_import:
         lines.append(module_import)
     lines += [
         "",
         f"def {test_name}():",
-        f"    result = {func_name}({args})",
+        f"    result = {func_name}({args_str})",
     ]
-    lines.extend(assertion_lines)
+    for line in assertion_lines:
+        lines.append(line)
     lines.append("")
     return "\n".join(lines)
 
@@ -119,36 +98,52 @@ def generate_pytest_tests(
 ) -> list[GeneratedTest]:
     tests: list[GeneratedTest] = []
     source_file = edge_cases.get("source_file", "unknown")
+    relative_source = edge_cases.get("relative_source")
     
     for fn_entry in edge_cases["functions"]:
         func = fn_entry["name"]
-        return_type = fn_entry.get("return_type")
-        exception_types = fn_entry.get("exceptions_detail", []) or []
-        parameter_details = fn_entry.get("parameter_details", []) or []
-        for condition, values in fn_entry["edge_cases"].items():
-            is_exception_case = isinstance(condition, str) and condition.startswith("exception:")
-            exception_type = condition.split(":", 1)[1] if is_exception_case and ":" in condition else (exception_types[0] if exception_types else "Exception")
-            for idx, value in enumerate(values):
-                test_name = f"test_{func}_{idx}"
-                if is_exception_case:
-                    code = _render_exception_pytest(func, value, test_name, module_import, exception_type)
-                    assertion_kind = f"exception:{exception_type}"
-                    purpose = f"raise:{exception_type}"
-                else:
-                    code = _render_pytest(func, value, test_name, module_import, return_type)
-                    assertion_kind = _assertion_lines(return_type)[1]
-                    purpose = f"semantic:{condition}"
-                tests.append(
-                    GeneratedTest(
-                        function=func,
-                        test_name=test_name,
-                        condition=condition,
-                        case=value if not callable(value) else None,
-                        language="python",
-                        framework="pytest",
-                        code=code,
-                        source_file=source_file,
-                    )
+        
+        # Dynamically generate import line if not provided
+        current_import = module_import
+        if not current_import and relative_source and relative_source.endswith(".py"):
+            stem = Path(relative_source).stem
+            parts = list(Path(relative_source).parent.parts)
+            # Remove leading standard prefixes
+            if parts and parts[0] in ("src", "app"):
+                parts = parts[1:]
+            if parts:
+                module_path = ".".join(parts) + f".{stem}"
+            else:
+                module_path = stem
+            module_path = module_path.lstrip(".")
+            if module_path:
+                current_import = f"from {module_path} import {func}"
+            
+        plans = generate_behavior_test_plans(fn_entry, "python")
+        for plan in plans:
+            test_name = plan["test_name"]
+            inputs = plan["inputs"]
+            expected_behavior = plan["expected_behavior"]
+            expected_val = plan["expected_value"]
+            
+            if expected_behavior == "raises":
+                code = _render_exception_pytest(func, inputs, test_name, current_import, expected_val)
+            else:
+                code = _render_pytest(func, inputs, test_name, current_import, fn_entry.get("return_type"), expected_val, plan["classification"])
+                
+            tests.append(
+                GeneratedTest(
+                    function=func,
+                    test_name=test_name,
+                    condition=plan["condition_source"],
+                    case=inputs,
+                    language="python",
+                    framework="pytest",
+                    code=code,
+                    source_file=source_file,
+                    relative_source=relative_source,
                 )
-                log.info("Generated pytest test %s for %s (%s)", test_name, func, assertion_kind)
+            )
+            log.info("Generated pytest test %s for %s (score=%d)", test_name, func, plan["quality_score"])
+            
     return tests

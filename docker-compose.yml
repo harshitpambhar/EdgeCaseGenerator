@@ -212,6 +212,7 @@ services:
       JPA_DDL_AUTO: update
       EUREKA_CLIENT_ENABLED: "true"
       ZIPKIN_EXPORT_ENABLED: "false"
+      ML_SERVICE_URL: http://ml-api:8000
       DOCKER_HOST: unix:///var/run/docker.sock
       DOCKER_WORKER_IMAGE: ecg-worker:latest
       # Use the compose project network so worker containers get proper DNS

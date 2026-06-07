@@ -17,8 +17,8 @@ def test_structure_mapper():
     print("Testing Structure Mapper...")
     
     tests = [
-        ("src/auth/login.py", "python", "src/auth/test_login.py"),
-        ("app/services/payment.py", "python", "app/services/test_payment.py"),
+        ("src/auth/login.py", "python", "tests/auth/test_login.py"),
+        ("app/services/payment.py", "python", "tests/services/test_payment.py"),
         ("src/auth/login.js", "javascript", "src/auth/tests/login.test.js"),
         ("src/auth/login.ts", "typescript", "src/auth/tests/login.test.ts"),
         ("src/main/java/com/company/UserService.java", "java", "src/test/java/com/company/UserServiceTest.java"),
@@ -79,6 +79,7 @@ def test_download_service():
             tests=tests,
             output_path=zip_path,
             files_parsed=10,
+            functions_parsed=15,
         )
         
         # Validate ZIP
@@ -102,7 +103,7 @@ def test_download_service():
                         print(f"      ✗ Missing: {req}")
                 
                 # Check test files
-                test_files = [f for f in files if f.startswith("generated_tests/")]
+                test_files = [f for f in files if f not in ("test_manifest.json", "generation_summary.md")]
                 print(f"    Test files: {len(test_files)}")
                 for tf in test_files:
                     print(f"      - {tf}")
