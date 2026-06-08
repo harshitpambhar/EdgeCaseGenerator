@@ -240,6 +240,7 @@ def generate_edge_cases_for_file(parsed: ParsedFileSchema) -> EdgeCaseSchema:
                     "return_type": fn.get("return_type"),
                     "docstring": fn.get("docstring", ""),
                     "exceptions_detail": fn.get("exceptions_detail", []),
+                    "exceptions": fn.get("exceptions", []),
                     "allowed_values": fn.get("allowed_values", {}),
                     "literal_values": fn.get("literal_values", []),
                     "default_values": fn.get("default_values", {}),

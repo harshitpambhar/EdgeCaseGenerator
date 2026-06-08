@@ -63,14 +63,15 @@ def _render_pytest(
         assertion_lines.append("    assert result is False")
     elif normalized == "list":
         assertion_lines.append("    assert isinstance(result, list)")
-        assertion_lines.append("    assert len(result) >= 0")
+        assertion_lines.append("    assert len(result) > 0")
     elif normalized == "object":
         assertion_lines.append("    assert isinstance(result, dict)")
+        assertion_lines.append("    assert len(result) > 0")
     elif normalized == "boolean":
         assertion_lines.append("    assert isinstance(result, bool)")
     elif normalized == "string":
         assertion_lines.append("    assert isinstance(result, str)")
-        assertion_lines.append("    assert len(result) >= 0")
+        assertion_lines.append("    assert len(result) > 0")
     elif normalized == "number":
         assertion_lines.append("    assert isinstance(result, (int, float))")
         if classification == "Calculation":
@@ -108,7 +109,6 @@ def generate_pytest_tests(
         if not current_import and relative_source and relative_source.endswith(".py"):
             stem = Path(relative_source).stem
             parts = list(Path(relative_source).parent.parts)
-            # Remove leading standard prefixes
             if parts and parts[0] in ("src", "app"):
                 parts = parts[1:]
             if parts:
@@ -119,6 +119,7 @@ def generate_pytest_tests(
             if module_path:
                 current_import = f"from {module_path} import {func}"
             
+        func_tests: list[GeneratedTest] = []
         plans = generate_behavior_test_plans(fn_entry, "python")
         for plan in plans:
             test_name = plan["test_name"]
@@ -126,24 +127,65 @@ def generate_pytest_tests(
             expected_behavior = plan["expected_behavior"]
             expected_val = plan["expected_value"]
             
+            normalized = _normalize_return_type(fn_entry.get("return_type"))
             if expected_behavior == "raises":
+                assertions_str = f"with pytest.raises({expected_val})"
                 code = _render_exception_pytest(func, inputs, test_name, current_import, expected_val)
             else:
+                assertion_lines = []
+                if expected_val is True:
+                    assertion_lines.append("assert result is True")
+                elif expected_val is False:
+                    assertion_lines.append("assert result is False")
+                elif normalized == "list":
+                    assertion_lines.append("assert isinstance(result, list)")
+                    assertion_lines.append("assert len(result) > 0")
+                elif normalized == "object":
+                    assertion_lines.append("assert isinstance(result, dict)")
+                    assertion_lines.append("assert len(result) > 0")
+                elif normalized == "boolean":
+                    assertion_lines.append("assert isinstance(result, bool)")
+                elif normalized == "string":
+                    assertion_lines.append("assert isinstance(result, str)")
+                    assertion_lines.append("assert len(result) > 0")
+                elif normalized == "number":
+                    assertion_lines.append("assert isinstance(result, (int, float))")
+                    if plan["classification"] == "Calculation":
+                        assertion_lines.append("assert result >= 0")
+                else:
+                    assertion_lines.append("assert result is not None")
+                assertions_str = "\n".join(assertion_lines)
                 code = _render_pytest(func, inputs, test_name, current_import, fn_entry.get("return_type"), expected_val, plan["classification"])
-                
-            tests.append(
-                GeneratedTest(
-                    function=func,
-                    test_name=test_name,
-                    condition=plan["condition_source"],
-                    case=inputs,
-                    language="python",
-                    framework="pytest",
-                    code=code,
-                    source_file=source_file,
-                    relative_source=relative_source,
-                )
+            
+            # Log exact input and assertions
+            log.info("Generated Inputs:\n%s", inputs)
+            log.info("Generated Assertions:\n%s", assertions_str)
+            
+            g_test = GeneratedTest(
+                function=func,
+                test_name=test_name,
+                condition=plan["condition_source"],
+                case=inputs,
+                language="python",
+                framework="pytest",
+                code=code,
+                source_file=source_file,
+                relative_source=relative_source,
             )
+            tests.append(g_test)
+            func_tests.append(g_test)
             log.info("Generated pytest test %s for %s (score=%d)", test_name, func, plan["quality_score"])
+            
+        import json
+        visibility_log = {
+            "function": func,
+            "parameters": fn_entry.get("parameters", []),
+            "allowed_values": fn_entry.get("allowed_values", {}),
+            "exceptions": fn_entry.get("exceptions", []) or fn_entry.get("exceptions_detail", []),
+            "return_type": fn_entry.get("return_type", "unknown"),
+            "generated_tests": [t["test_name"] for t in func_tests]
+        }
+        print(json.dumps(visibility_log, indent=2))
+        log.info("Function Generation Summary:\n%s", json.dumps(visibility_log, indent=2))
             
     return tests

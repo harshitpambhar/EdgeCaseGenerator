@@ -28,6 +28,31 @@ except ImportError:
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
+def is_valid_function_name(name: str, language: str) -> bool:
+    if not name:
+        return False
+    if language == "python":
+        if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", name):
+            return False
+    else:
+        if not re.match(r"^[a-zA-Z_$][a-zA-Z0-9_$]*$", name):
+            return False
+            
+    # Keywords
+    keywords = {
+        "if", "for", "while", "catch", "switch", "try", "except", "finally", 
+        "else", "elif", "do", "break", "continue", "return", "throw", "throws", 
+        "class", "interface", "enum", "function", "def", "async", "await", 
+        "yield", "let", "var", "const", "new", "void", "delete", "typeof", 
+        "instanceof", "in", "of", "with", "debugger", "this", "super", "import", 
+        "export", "extends", "implements", "package", "default", "case", 
+        "assert", "lambda", "global", "nonlocal", "del"
+    }
+    if name.lower() in keywords or name in keywords:
+        return False
+    return True
+
+
 def _count_nesting(source: str) -> int:
     max_d = d = 0
     for ch in source:
@@ -67,7 +92,63 @@ def _extract_thrown_types(src: str) -> list[str]:
             name = part.strip()
             if name and name not in types:
                 types.append(name)
-    return types or (["Throwable"] if _throws_regex(src) else [])
+    return types or (["RuntimeException"] if _throws_regex(src) else [])
+
+
+def _normalize_type(type_text: str | None) -> str:
+    if not type_text:
+        return "unknown"
+    normalized = type_text.strip().lower()
+    if normalized in {"string", "str"}:
+        return "string"
+    if normalized in {"boolean", "bool"}:
+        return "boolean"
+    if normalized in {"int", "float", "double", "long", "short", "byte", "number", "integer"}:
+        return "number"
+    if "list" in normalized or "set" in normalized or "collection" in normalized or "[]" in normalized or "array" in normalized:
+        return "list"
+    if "map" in normalized or "dict" in normalized or "object" in normalized or normalized.startswith("{"):
+        return "object"
+    return "unknown"
+
+
+def _extract_java_enums(source: str) -> dict[str, list[Any]]:
+    enums = {}
+    pattern = re.compile(r"\benum\s+(\w+)\s*\{([^}]+)\}", re.MULTILINE)
+    for match in pattern.finditer(source):
+        enum_name = match.group(1)
+        body = match.group(2)
+        entries = []
+        clean_body = re.sub(r"//.*|/\*.*?\*/", "", body, flags=re.DOTALL)
+        for part in clean_body.split(","):
+            part = part.strip()
+            if not part:
+                continue
+            m = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)", part)
+            if m:
+                entries.append(m.group(1))
+        enums[enum_name] = entries
+    return enums
+
+
+def _extract_switch_cases(body: str) -> dict[str, list[Any]]:
+    switch_cases = {}
+    switch_matches = re.finditer(r"switch\s*\(([^)]+)\)\s*\{", body)
+    for sm in switch_matches:
+        var_name = sm.group(1).strip()
+        start = sm.end()
+        case_pattern = re.compile(r"case\s+(?:['\"]([^'\"]+)['\"]|(-?\d+)|(true|false)|([A-Za-z_][A-Za-z0-9_]*))\s*:")
+        for cm in case_pattern.finditer(body, pos=start):
+            val = cm.group(1) or cm.group(2) or cm.group(3) or cm.group(4)
+            if val is not None:
+                if cm.group(2):
+                    parsed_val = int(val)
+                elif cm.group(3):
+                    parsed_val = val.lower() == "true"
+                else:
+                    parsed_val = val
+                switch_cases.setdefault(var_name, []).append(parsed_val)
+    return switch_cases
 
 
 def _extract_literal_metadata(source: str) -> tuple[list[str], dict[str, list[Any]], list[Any], list[str], list[dict[str, Any]], str | None]:
@@ -83,7 +164,7 @@ def _extract_literal_metadata(source: str) -> tuple[list[str], dict[str, list[An
         source,
     )
     if method_match:
-        return_type = method_match.group(1).strip()
+        return_type = _normalize_type(method_match.group(1).strip())
         raw_params = method_match.group(3)
         for param in raw_params.split(","):
             param = param.strip()
@@ -91,7 +172,11 @@ def _extract_literal_metadata(source: str) -> tuple[list[str], dict[str, list[An
                 continue
             pieces = param.split()
             if len(pieces) >= 2:
-                parameter_details.append({"name": pieces[-1], "type": " ".join(pieces[:-1]), "default_value": None})
+                parameter_details.append({
+                    "name": pieces[-1],
+                    "type": _normalize_type(" ".join(pieces[:-1])),
+                    "default_value": None
+                })
 
     for match in re.finditer(r"([A-Za-z_][A-Za-z0-9_]*)\s*(==|!=|>=|<=|>|<)\s*(\"[^\"]*\"|'[^']*'|-?\d+(?:\.\d+)?|true|false|null)", source, re.IGNORECASE):
         name, op, raw_value = match.groups()
@@ -125,11 +210,9 @@ def _extract_literal_metadata(source: str) -> tuple[list[str], dict[str, list[An
 # ── javalang parser ───────────────────────────────────────────────────────────
 
 def _method_body_src(source_code: str, node) -> str:
-    """Best-effort extraction of a method body using line positions from javalang."""
     try:
-        start_line = node.position.line - 1  # javalang lines are 1-based
+        start_line = node.position.line - 1
         lines = source_code.splitlines()
-        # collect from the method declaration line; grab up to 200 lines
         body_lines = lines[start_line : start_line + 200]
         return "\n".join(body_lines)
     except Exception:
@@ -144,37 +227,75 @@ def _parse_javalang(source_code: str) -> list[FunctionSchema]:
         return []
 
     functions: list[FunctionSchema] = []
+    file_enums = {}
+    for _, node in tree.filter(javalang.tree.EnumDeclaration):
+        file_enums[node.name] = [entry.name for entry in (node.entries or [])]
+
     for _, node in tree.filter(javalang.tree.MethodDeclaration):
-        params = [p.name for p in (node.parameters or [])]
-        parameter_details = [
-            {"name": p.name, "type": str(getattr(p.type, "name", p.type)), "default_value": None}
-            for p in (node.parameters or [])
-        ]
+        name = node.name
+        if not is_valid_function_name(name, "java"):
+            continue
+
+        parameter_details = []
+        parameters_meta = []
+        for p in (node.parameters or []):
+            ptype = _normalize_type(str(getattr(p.type, "name", p.type)))
+            parameter_details.append({
+                "name": p.name,
+                "type": ptype,
+                "default_value": None
+            })
+            parameters_meta.append({
+                "name": p.name,
+                "type": ptype,
+                "required": True
+            })
+
         body_src = _method_body_src(source_code, node)
         conditions = _conditions_regex(body_src)
         semantic_conditions, allowed_values, literals, operators, semantic_params, _rt = _extract_literal_metadata(body_src)
-        # javalang gives us the declared return type reliably
-        return_type = str(getattr(node.return_type, "name", node.return_type)) if node.return_type else None
-        # javalang throws list contains ReferenceType objects — extract .name
+        return_type = _normalize_type(str(getattr(node.return_type, "name", node.return_type)) if node.return_type else None)
+        
         declared_throws = []
         for exc in (node.throws or []):
-            name = getattr(exc, "name", None) or str(exc)
-            if name and name not in declared_throws:
-                declared_throws.append(name)
-        # also catch throw-new inside body
+            exc_name = getattr(exc, "name", None) or str(exc)
+            if exc_name and exc_name not in declared_throws:
+                declared_throws.append(exc_name)
         body_thrown = _extract_thrown_types(body_src)
-        exceptions_detail = list(dict.fromkeys(declared_throws + [t for t in body_thrown if t not in declared_throws]))
-        if not exceptions_detail and _throws_regex(body_src):
-            exceptions_detail = ["RuntimeException"]
-        log.debug(
-            "javalang parsed method %s: params=%s return=%s throws=%s conditions=%d literals=%d",
-            node.name, params, return_type, exceptions_detail, len(conditions), len(literals),
-        )
+        exceptions_list = list(dict.fromkeys(declared_throws + [t for t in body_thrown if t not in declared_throws]))
+        if not exceptions_list and _throws_regex(body_src):
+            exceptions_list = ["RuntimeException"]
+
+        # Map enum values to parameters if type matches enum
+        for detail in parameter_details:
+            pname = detail["name"]
+            ptype = detail["type"]
+            for enum_name, enum_vals in file_enums.items():
+                if (ptype and ptype.lower() == enum_name.lower()) or (pname and enum_name.lower() in pname.lower()):
+                    allowed_values.setdefault(pname, []).extend(enum_vals)
+
+        # Extract switch cases
+        switches = _extract_switch_cases(body_src)
+        for var_name, vals in switches.items():
+            for detail in parameter_details:
+                pname = detail["name"]
+                if pname == var_name:
+                    allowed_values.setdefault(pname, []).extend(vals)
+
+        allowed_values = {k: list(dict.fromkeys(v)) for k, v in allowed_values.items()}
+
+        # Log exactly as requested
+        log.info("Extracted Function:\n%s", name)
+        log.info("Parameters:\n%s", parameters_meta)
+        log.info("Return Type:\n%s", return_type)
+        log.info("Allowed Values:\n%s", allowed_values)
+        log.info("Exceptions:\n%s", exceptions_list)
+
         functions.append(
             FunctionSchema(
-                name=node.name,
-                parameters=params,
-                parameter_details=parameter_details or semantic_params,
+                name=name,
+                parameters=parameters_meta,
+                parameter_details=parameter_details,
                 return_type=return_type,
                 conditions=list(dict.fromkeys(conditions + semantic_conditions)),
                 branch_conditions=list(dict.fromkeys(conditions + semantic_conditions)),
@@ -182,10 +303,10 @@ def _parse_javalang(source_code: str) -> list[FunctionSchema]:
                 literal_values=literals,
                 allowed_values=allowed_values,
                 default_values={},
-                exceptions_detail=exceptions_detail,
+                exceptions_detail=exceptions_list,
                 loops=_loops_regex(body_src),
                 returns=_returns_regex(body_src),
-                exceptions=len(exceptions_detail),
+                exceptions=exceptions_list,
                 operators=[],
                 nesting_depth=_count_nesting(body_src),
                 complexity_score=1 + len(conditions) + _loops_regex(body_src),
@@ -206,30 +327,70 @@ _METHOD_RE = re.compile(
 
 def _parse_regex(source_code: str) -> list[FunctionSchema]:
     functions: list[FunctionSchema] = []
+    file_enums = _extract_java_enums(source_code)
+
     for m in _METHOD_RE.finditer(source_code):
         name = m.group(1)
+        if not name or not is_valid_function_name(name, "java"):
+            continue
+
         raw_params = m.group(2) or ""
-        params = [p.strip().split()[-1] for p in raw_params.split(",") if p.strip()]
+        parameter_details = []
+        parameters_meta = []
+        for param in raw_params.split(","):
+            param = param.strip()
+            if not param:
+                continue
+            pieces = param.split()
+            if len(pieces) >= 2:
+                pname = pieces[-1]
+                ptype = _normalize_type(" ".join(pieces[:-1]))
+                parameter_details.append({
+                    "name": pname,
+                    "type": ptype,
+                    "default_value": None
+                })
+                parameters_meta.append({
+                    "name": pname,
+                    "type": ptype,
+                    "required": True
+                })
+
         body = source_code[m.start() : m.start() + 2000]
         conditions = _conditions_regex(body)
-        semantic_conditions, allowed_values, literals, operators, parameter_details, return_type = _extract_literal_metadata(body)
-        thrown_types = _extract_thrown_types(body)
-        # also capture throws clause on this method signature line
-        sig_throws_match = re.search(r"throws\s+([A-Za-z_][A-Za-z0-9_,\s]+)(?:\s*\{)", body)
-        if sig_throws_match:
-            for part in sig_throws_match.group(1).split(","):
-                t = part.strip()
-                if t and t not in thrown_types:
-                    thrown_types.append(t)
-        log.debug(
-            "regex parsed method %s: params=%s return=%s throws=%s",
-            name, params, return_type, thrown_types,
-        )
+        semantic_conditions, allowed_values, literals, operators, semantic_params, return_type = _extract_literal_metadata(body)
+        exceptions_list = _extract_thrown_types(body)
+
+        # Map enum values to parameters if type matches enum
+        for detail in parameter_details:
+            pname = detail["name"]
+            ptype = detail["type"]
+            for enum_name, enum_vals in file_enums.items():
+                if (ptype and ptype.lower() == enum_name.lower()) or (pname and enum_name.lower() in pname.lower()):
+                    allowed_values.setdefault(pname, []).extend(enum_vals)
+
+        # Extract switch cases
+        switches = _extract_switch_cases(body)
+        for var_name, vals in switches.items():
+            for detail in parameter_details:
+                pname = detail["name"]
+                if pname == var_name:
+                    allowed_values.setdefault(pname, []).extend(vals)
+
+        allowed_values = {k: list(dict.fromkeys(v)) for k, v in allowed_values.items()}
+
+        # Log exactly as requested
+        log.info("Extracted Function:\n%s", name)
+        log.info("Parameters:\n%s", parameters_meta)
+        log.info("Return Type:\n%s", return_type)
+        log.info("Allowed Values:\n%s", allowed_values)
+        log.info("Exceptions:\n%s", exceptions_list)
+
         functions.append(
             FunctionSchema(
                 name=name,
-                parameters=params,
-                parameter_details=parameter_details or [{"name": p, "type": None, "default_value": None} for p in params],
+                parameters=parameters_meta,
+                parameter_details=parameter_details,
                 return_type=return_type,
                 conditions=list(dict.fromkeys(conditions + semantic_conditions)),
                 branch_conditions=list(dict.fromkeys(conditions + semantic_conditions)),
@@ -237,10 +398,10 @@ def _parse_regex(source_code: str) -> list[FunctionSchema]:
                 literal_values=literals,
                 allowed_values=allowed_values,
                 default_values={},
-                exceptions_detail=thrown_types,
+                exceptions_detail=exceptions_list,
                 loops=_loops_regex(body),
                 returns=_returns_regex(body),
-                exceptions=len(thrown_types),
+                exceptions=exceptions_list,
                 operators=[],
                 nesting_depth=_count_nesting(body),
                 complexity_score=1 + len(conditions) + _loops_regex(body),

@@ -50,13 +50,13 @@ def _assertion_snippet(return_type: Any, expected_value: Any, classification: st
         return "expect(result).toBe(false);"
         
     if normalized == "list":
-        return "expect(Array.isArray(result)).toBe(true);\n  expect(result.length).toBeGreaterThanOrEqual(0);"
+        return "expect(Array.isArray(result)).toBe(true);\n  expect(result.length).toBeGreaterThan(0);"
     if normalized == "object":
-        return 'expect(typeof result).toBe("object");\n  expect(result).not.toBeNull();'
+        return 'expect(typeof result).toBe("object");\n  expect(result).not.toBeNull();\n  expect(Object.keys(result).length).toBeGreaterThan(0);'
     if normalized == "boolean":
         return 'expect(typeof result).toBe("boolean");'
     if normalized == "string":
-        return 'expect(typeof result).toBe("string");'
+        return 'expect(typeof result).toBe("string");\n  expect(result.length).toBeGreaterThan(0);'
     if normalized == "number":
         snippet = 'expect(typeof result).toBe("number");'
         if classification == "Calculation":
@@ -121,6 +121,7 @@ def generate_jest_tests(
             stem = Path(relative_source).stem
             current_import = f"../{stem}"
             
+        func_tests: list[GeneratedTest] = []
         plans = generate_behavior_test_plans(fn_entry, "javascript")
         for plan in plans:
             test_name = plan["test_name"]
@@ -131,36 +132,56 @@ def generate_jest_tests(
             # Map dictionary inputs to positional arguments based on parameter list
             args_list = []
             for p in fn_entry.get("parameters", []):
-                if p in inputs:
-                    args_list.append(inputs[p])
-                elif fn_entry.get("default_values", {}).get(p) is not None:
-                    args_list.append(fn_entry["default_values"][p])
+                p_name = p["name"] if isinstance(p, dict) else p
+                if p_name in inputs:
+                    args_list.append(inputs[p_name])
+                elif fn_entry.get("default_values", {}).get(p_name) is not None:
+                    args_list.append(fn_entry["default_values"][p_name])
                 else:
                     args_list.append(None)
                     
             args_str = ", ".join(_js_repr(v) for v in args_list)
             
+            normalized = _normalize_return_type(fn_entry.get("return_type"))
             if expected_behavior == "raises":
+                assertions_str = f"expect(() => {func}(...)).toThrow()"
                 code = _render_exception_jest(func, args_str, test_name, current_import)
             else:
+                assertions_str = _assertion_snippet(fn_entry.get("return_type"), expected_val, plan["classification"])
                 code = _render_jest(
                     func, args_str, test_name, current_import,
                     fn_entry.get("return_type"), expected_val, plan["classification"]
                 )
                 
-            tests.append(
-                GeneratedTest(
-                    function=func,
-                    test_name=test_name,
-                    condition=plan["condition_source"],
-                    case=inputs,
-                    language=edge_cases.get("language", "javascript"),
-                    framework="jest",
-                    code=code,
-                    source_file=source_file,
-                    relative_source=relative_source,
-                )
+            # Log exact input and assertions
+            log.info("Generated Inputs:\n%s", inputs)
+            log.info("Generated Assertions:\n%s", assertions_str)
+            
+            g_test = GeneratedTest(
+                function=func,
+                test_name=test_name,
+                condition=plan["condition_source"],
+                case=inputs,
+                language=edge_cases.get("language", "javascript"),
+                framework="jest",
+                code=code,
+                source_file=source_file,
+                relative_source=relative_source,
             )
+            tests.append(g_test)
+            func_tests.append(g_test)
             log.info("Generated jest test %s for %s (score=%d)", test_name, func, plan["quality_score"])
+            
+        import json
+        visibility_log = {
+            "function": func,
+            "parameters": fn_entry.get("parameters", []),
+            "allowed_values": fn_entry.get("allowed_values", {}),
+            "exceptions": fn_entry.get("exceptions", []) or fn_entry.get("exceptions_detail", []),
+            "return_type": fn_entry.get("return_type", "unknown"),
+            "generated_tests": [t["test_name"] for t in func_tests]
+        }
+        print(json.dumps(visibility_log, indent=2))
+        log.info("Function Generation Summary:\n%s", json.dumps(visibility_log, indent=2))
             
     return tests

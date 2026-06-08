@@ -30,7 +30,13 @@ def _function_priority(function: dict) -> tuple[str, int]:
     conditions = function.get("conditions", []) or []
     loops = int(function.get("loops", 0) or 0)
     returns = int(function.get("returns", 0) or 0)
-    exceptions = int(function.get("exceptions", 0) or 0)
+    
+    exceptions = function.get("exceptions", 0)
+    if isinstance(exceptions, list):
+        exceptions_count = len(exceptions)
+    else:
+        exceptions_count = int(exceptions or 0)
+        
     complexity_score = int(function.get("complexity_score", 0) or 0)
 
     score = 0
@@ -44,7 +50,7 @@ def _function_priority(function: dict) -> tuple[str, int]:
         score += min(3, len(conditions))
     if loops:
         score += 2
-    if exceptions:
+    if exceptions_count:
         score += 2
     if returns > 1:
         score += 1

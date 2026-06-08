@@ -176,19 +176,64 @@ def extract_values_from_condition(condition: str) -> tuple[str, list[tuple[Any, 
     return None
 
 
+def _normalize_return_type(return_type: Any) -> str:
+    """Normalize return type mapping into general categories (list, object, boolean, string, number)."""
+    if not return_type:
+        return "unknown"
+    text = str(return_type).strip().lower()
+    if any(token in text for token in ("list", "tuple", "set")):
+        return "list"
+    if any(token in text for token in ("dict", "map", "object", "json", "record")):
+        return "object"
+    if "bool" in text:
+        return "boolean"
+    if any(token in text for token in ("str", "string", "text")):
+        return "string"
+    if any(token in text for token in ("int", "float", "number", "decimal", "double", "long")):
+        return "number"
+    return "unknown"
+
+
+def _generate_test_name(func_name: str, param_name: str, value: Any, category: str) -> str:
+    if category == "happy_path":
+        return f"test_{func_name}_happy_path"
+    if category == "exception" or value is None:
+        return f"test_{func_name}_invalid_{param_name}"
+    if isinstance(value, bool):
+        val_str = "true" if value else "false"
+        return f"test_{func_name}_{param_name}_{val_str}"
+    
+    val_str = str(value).strip().lower()
+    if (val_str.startswith('"') and val_str.endswith('"')) or (val_str.startswith("'") and val_str.endswith("'")):
+        val_str = val_str[1:-1].strip()
+    val_str = re.sub(r'[^a-zA-Z0-9_]', '_', val_str)
+    val_str = val_str.strip('_')
+    
+    if val_str:
+        # Avoid double naming if it already has the function name
+        return f"test_{func_name}_{val_str}"
+    return f"test_{func_name}_{param_name}_case"
+
+
 def generate_behavior_test_plans(fn_entry: dict[str, Any], language: str) -> list[BehaviorTestPlan]:
     """Analyze metadata to produce high-quality behavior-driven test cases."""
     func_name = fn_entry.get("name", "unknown")
-    return_type = fn_entry.get("return_type")
+    return_type = _normalize_return_type(fn_entry.get("return_type"))
     param_details = fn_entry.get("parameter_details", []) or []
     defaults = fn_entry.get("default_values", {}) or {}
     allowed_values = fn_entry.get("allowed_values", {}) or {}
     literal_values = fn_entry.get("literal_values", []) or []
-    exceptions = fn_entry.get("exceptions_detail", []) or []
+    exceptions = fn_entry.get("exceptions_detail", []) or fn_entry.get("exceptions", []) or []
     branch_conditions = fn_entry.get("branch_conditions", []) or []
+    
+    # Ensure exceptions contains string names
+    exceptions = [str(e) for e in exceptions if e]
     
     classification = classify_function(func_name, return_type, fn_entry.get("docstring", ""), param_details)
     
+    # Required parameters set
+    required_params = {p["name"] for p in param_details if p.get("required")}
+
     # Establish Happy Path default values for all parameters
     happy_inputs: dict[str, Any] = {}
     for param in param_details:
@@ -197,17 +242,14 @@ def generate_behavior_test_plans(fn_entry: dict[str, Any], language: str) -> lis
             continue
         ptype = param.get("type", "").lower()
         
-        # Priority mapping for happy path
-        if name in defaults:
-            happy_inputs[name] = defaults[name]
-        elif name in allowed_values and allowed_values[name]:
+        # Priority mapping for happy path: Allowed values -> Enum -> Defaults -> Type-based
+        if name in allowed_values and allowed_values[name]:
             happy_inputs[name] = allowed_values[name][0]
-        elif literal_values:
-            # Try to match literals
-            happy_inputs[name] = literal_values[0]
+        elif name in defaults and defaults[name] is not None:
+            happy_inputs[name] = defaults[name]
         else:
             semantic = get_semantic_values(name)
-            if semantic:
+            if semantic and semantic.get("positive"):
                 happy_inputs[name] = semantic["positive"][0]
             elif any(x in ptype for x in ["int", "float", "number", "double"]):
                 happy_inputs[name] = 10
@@ -222,12 +264,10 @@ def generate_behavior_test_plans(fn_entry: dict[str, Any], language: str) -> lis
 
     # Candidates mapping: parameter -> list of tuples (value, condition_source, category)
     candidates: dict[str, list[tuple[Any, str, str]]] = {}
-    
-    # Initialize candidates list
     for param in param_details:
         candidates[param["name"]] = []
 
-    # 1. Parse Branch Conditions to align parameters to branches (Rule 2, Rule 9)
+    # 1. Parse Branch Conditions to align parameters to branches
     for cond in branch_conditions:
         extracted = extract_values_from_condition(cond)
         if extracted:
@@ -236,17 +276,18 @@ def generate_behavior_test_plans(fn_entry: dict[str, Any], language: str) -> lis
                 for val, cat in cases:
                     candidates[var_name].append((val, f"branch:{cond}", cat))
 
-    # 2. Apply Semantic rules (Rule 1, Rule 8, Rule 13)
+    # 2. Apply Semantic and Enum rules
     for param in param_details:
         pname = param["name"]
         ptype = param.get("type", "").lower()
         
-        # Add allowed values if available
+        # Add allowed values / enums if available
         if pname in allowed_values and allowed_values[pname]:
             for val in allowed_values[pname]:
                 candidates[pname].append((val, f"allowed_values:{pname}", "positive"))
-            # Add semantic invalid cases as well
-            candidates[pname].append((None, f"allowed_values_null:{pname}", "exception"))
+            # Add invalid value checks
+            if pname not in required_params:
+                candidates[pname].append((None, f"allowed_values_null:{pname}", "exception"))
             candidates[pname].append(("__invalid_value__", f"allowed_values_invalid:{pname}", "exception"))
             
         # Match semantic names
@@ -257,104 +298,184 @@ def generate_behavior_test_plans(fn_entry: dict[str, Any], language: str) -> lis
             for val in semantic["negative"]:
                 candidates[pname].append((val, f"semantic_neg:{pname}", "negative"))
             for val in semantic["exception"]:
+                # Only add None if parameter is not required
+                if val is None and pname in required_params:
+                    continue
                 candidates[pname].append((val, f"semantic_exc:{pname}", "exception"))
-                
-        # 3. Validation Functions specific rules (Rule 13)
-        if classification == "Validation":
-            if "email" in pname.lower():
-                candidates[pname].extend([
-                    ("valid.user@domain.com", "email_validation", "positive"),
-                    ("invalid-email", "email_validation", "negative"),
-                    ("", "email_validation", "exception"),
-                    ("malformed@domain..com", "email_validation", "negative")
-                ])
-                
-        # 4. Mathematical Functions boundary rules (Rule 14)
-        if classification == "Calculation":
-            if any(x in ptype for x in ["int", "float", "number", "double"]):
-                candidates[pname].extend([
-                    (1, "math_boundary", "positive"),
-                    (0, "math_boundary", "boundary"),
-                    (-1, "math_boundary", "negative"),
-                    (999999, "math_extreme", "boundary"),
-                ])
-                if "b" in pname.lower() or "div" in func_name.lower():
-                    # division by zero check
-                    candidates[pname].append((0, "division_by_zero", "exception"))
 
-        # 5. Collection Functions rules (Rule 15)
-        if any(x in ptype for x in ["list", "array", "sequence", "collection"]):
-            candidates[pname].extend([
-                ([], "collection_empty", "boundary"),
-                ([1], "collection_single", "positive"),
-                ([1, 1, 2, 2], "collection_duplicates", "boundary"),
-                (list(range(100)), "collection_large", "boundary"),
-                ([1, "two", None], "collection_mixed", "boundary")
-            ])
-            
-        # 6. Type based fallbacks
+        # Category-specific testing strategies
+        if classification == "Validation":
+            if ptype == "string":
+                candidates[pname].extend([
+                    ("valid_" + pname, f"{pname}_val_valid", "positive"),
+                    ("", f"{pname}_val_empty", "boundary"),
+                    (" ", f"{pname}_val_whitespace", "negative"),
+                ])
+                if pname not in required_params:
+                    candidates[pname].append((None, f"{pname}_val_null", "exception"))
+            elif ptype == "number":
+                candidates[pname].extend([
+                    (1, f"{pname}_val_valid", "positive"),
+                    (0, f"{pname}_val_zero", "boundary"),
+                    (-1, f"{pname}_val_negative", "negative"),
+                ])
+                if pname not in required_params:
+                    candidates[pname].append((None, f"{pname}_val_null", "exception"))
+        elif classification == "Transformation":
+            if ptype == "string":
+                candidates[pname].extend([
+                    ("standard_value", f"{pname}_trans_std", "positive"),
+                    ("", f"{pname}_trans_empty", "boundary"),
+                    ("malformed{json:invalid", f"{pname}_trans_malformed", "negative"),
+                ])
+                if pname not in required_params:
+                    candidates[pname].append((None, f"{pname}_trans_null", "exception"))
+            elif ptype == "list":
+                candidates[pname].extend([
+                    ([], f"{pname}_trans_empty_list", "boundary"),
+                    ([1, 2, 3], f"{pname}_trans_list", "positive"),
+                ])
+            elif ptype == "object":
+                candidates[pname].extend([
+                    ({}, f"{pname}_trans_empty_dict", "boundary"),
+                    ({"key": "val"}, f"{pname}_trans_dict", "positive"),
+                ])
+        elif classification == "Calculation":
+            if ptype == "number":
+                candidates[pname].extend([
+                    (10, f"{pname}_calc_std", "positive"),
+                    (0, f"{pname}_calc_zero", "boundary"),
+                    (-5, f"{pname}_calc_neg", "negative"),
+                    (999999, f"{pname}_calc_extreme", "boundary"),
+                ])
+        elif classification == "CRUD":
+            if ptype == "string" and ("id" in pname.lower() or "key" in pname.lower()):
+                candidates[pname].extend([
+                    ("existing_id_123", f"{pname}_crud_exists", "positive"),
+                    ("non_existent_id_999", f"{pname}_crud_missing", "negative"),
+                    ("", f"{pname}_crud_empty", "boundary"),
+                ])
+                if pname not in required_params:
+                    candidates[pname].append((None, f"{pname}_crud_null", "exception"))
+            elif ptype == "object":
+                candidates[pname].extend([
+                    ({"id": 1, "name": "test"}, f"{pname}_crud_payload", "positive"),
+                    ({}, f"{pname}_crud_empty_payload", "boundary"),
+                ])
+        elif classification == "API Wrapper":
+            if "url" in pname.lower() or "endpoint" in pname.lower():
+                candidates[pname].extend([
+                    ("https://httpbin.org/get", f"{pname}_api_url", "positive"),
+                    ("http://invalid.local", f"{pname}_api_invalid", "negative"),
+                    ("", f"{pname}_api_empty", "boundary"),
+                ])
+                if pname not in required_params:
+                    candidates[pname].append((None, f"{pname}_api_null", "exception"))
+
+        # Fallbacks if candidates empty
         if not candidates[pname]:
             if any(x in ptype for x in ["bool", "boolean"]):
                 candidates[pname].extend([(True, "bool_fall", "positive"), (False, "bool_fall", "negative")])
             elif any(x in ptype for x in ["int", "float", "number"]):
-                candidates[pname].extend([(10, "num_fall", "positive"), (0, "num_fall", "boundary"), (-1, "num_fall", "negative")])
+                candidates[pname].extend([(10, "num_fall", "positive"), (0, "num_fall", "boundary")])
+                if pname not in required_params:
+                    candidates[pname].append((None, "num_fall_null", "exception"))
             else:
-                candidates[pname].extend([("test", "str_fall", "positive"), ("", "str_fall", "boundary"), (None, "str_fall", "exception")])
+                candidates[pname].extend([("test", "str_fall", "positive"), ("", "str_fall", "boundary")])
+                if pname not in required_params:
+                    candidates[pname].append((None, "str_fall_null", "exception"))
 
-    # Construct Test Plans using one-at-a-time substitution
     plans: list[BehaviorTestPlan] = []
-    
-    # Always include a happy path test
+    existing_names = set()
+
+    # Always include the happy path test
+    happy_name = f"test_{func_name}_happy_path"
     plans.append({
-        "test_name": f"test_{func_name}_happy_path",
+        "test_name": happy_name,
         "inputs": happy_inputs,
         "expected_behavior": "returns",
-        "expected_value": return_type or "unknown",
+        "expected_value": return_type,
         "condition_source": "happy_path",
-        "quality_score": 75,
+        "quality_score": 80,
         "description": "Happy path testing with standard inputs.",
         "classification": classification
     })
+    existing_names.add(happy_name)
 
-    # Keep track of exceptions mapping to direct raise tests (Rule 3)
+    # Determine default target exception
     target_exception = exceptions[0] if exceptions else "ValueError" if classification == "Validation" else "Exception"
-    
+
+    # Helper function to validate plans against Quality Gate
+    def validate_plan(plan: BehaviorTestPlan) -> bool:
+        inputs = plan["inputs"]
+        test_name = plan["test_name"]
+        
+        # 1. Missing required parameters
+        for param in param_details:
+            pname = param["name"]
+            preq = param.get("required")
+            
+            if pname not in inputs:
+                if preq:
+                    log.info("Rejecting test plan %s: missing required parameter %s", test_name, pname)
+                    return False
+            else:
+                val = inputs[pname]
+                # 2. Uses None for required parameter
+                if val is None and preq:
+                    log.info("Rejecting test plan %s: uses None for required parameter %s", test_name, pname)
+                    return False
+                
+                # 3. Uses True/False for string parameter
+                ptype = param.get("type", "").lower()
+                if ptype == "string" and isinstance(val, bool):
+                    log.info("Rejecting test plan %s: uses boolean for string parameter %s", test_name, pname)
+                    return False
+                    
+        # 4. Only contains assert result is not None
+        # We reject if expected behavior is returns and return type is unknown
+        if plan["expected_behavior"] == "returns" and return_type == "unknown":
+            log.info("Rejecting test plan %s: return type unknown (would result in weak assertion)", test_name)
+            return False
+            
+        # 5. Duplicates another test
+        if test_name in existing_names:
+            log.info("Rejecting test plan %s: duplicates another test name", test_name)
+            return False
+            
+        return True
+
     for pname, values in candidates.items():
         for val, src, cat in values:
-            # Skip duplicate value checks per parameter
             current_inputs = happy_inputs.copy()
             current_inputs[pname] = val
             
-            # Format test name based on condition and category
-            clean_src = src.replace("branch:", "").replace(" ", "_").replace(">", "gt").replace("<", "lt").replace("=", "eq").replace("!", "ne")
-            clean_src = re.sub(r'[^a-zA-Z0-9_]', '', clean_src)
-            test_name = f"test_{func_name}_{cat}_{clean_src}"
+            test_name = _generate_test_name(func_name, pname, val, cat)
             
             expected_behavior = "returns"
-            expected_val = return_type or "unknown"
+            expected_val = return_type
             
             if cat == "exception":
                 expected_behavior = "raises"
                 expected_val = target_exception
                 
-            # Score the quality of the test plan (Rule 17)
-            q_score = 0
-            if "branch:" in src:
-                q_score += 30  # branch coverage
-            if "semantic" in src or cat == "positive":
-                q_score += 25  # semantic coverage
-            if cat == "exception":
-                q_score += 25  # exception coverage
-            if return_type and return_type != "unknown":
-                q_score += 20  # assertion quality
+            # Compute Granular Quality Score
+            q_score = 10
+            if "branch" in src.lower():
+                q_score += 35
+            if "semantic" in src.lower() or "allowed" in src.lower() or "enum" in src.lower():
+                q_score += 25
+            if expected_behavior == "raises":
+                q_score += 20
+            if return_type != "unknown":
+                q_score += 20
             else:
-                q_score += 10
+                q_score += 5
                 
-            # Discard tests below quality score threshold (Rule 17)
-            if q_score < 30:
-                continue
+            if expected_behavior != "raises" and return_type == "unknown":
+                q_score -= 10
                 
-            plans.append({
+            plan: BehaviorTestPlan = {
                 "test_name": test_name,
                 "inputs": current_inputs,
                 "expected_behavior": expected_behavior,
@@ -363,46 +484,33 @@ def generate_behavior_test_plans(fn_entry: dict[str, Any], language: str) -> lis
                 "quality_score": q_score,
                 "description": f"Verifies behavior ({cat}) for {pname} derived from {src}.",
                 "classification": classification
-            })
+            }
+            
+            # Apply Quality Gate
+            if q_score < 40:
+                log.info("Rejecting test plan %s: quality score %d below threshold", test_name, q_score)
+                continue
+                
+            if validate_plan(plan):
+                plans.append(plan)
+                existing_names.add(test_name)
 
-    # Aggressive Deduplication (Rule 11)
+    # Aggressive Deduplication
     unique_plans: list[BehaviorTestPlan] = []
     seen_inputs = set()
     for plan in plans:
-        # Serialize inputs to handle lists/dicts
         inp = plan["inputs"]
         serialized = str(sorted((k, str(v)) for k, v in inp.items()))
-        # Deduplicate on serialized inputs and expected behavior
         key = (serialized, plan["expected_behavior"], plan["expected_value"])
         if key not in seen_inputs:
             seen_inputs.add(key)
             unique_plans.append(plan)
             
-    # Sort plans by quality score descending to keep best tests
     unique_plans.sort(key=lambda x: x["quality_score"], reverse=True)
     
-    # Cap maximum test cases to prevent bloat (Rule 10)
-    # High complexity: 8 tests, Medium complexity: 5 tests, Low complexity: 3 tests
+    # Cap test count based on complexity
     complexity = fn_entry.get("complexity_score", 1)
     cap = 8 if complexity >= 5 else 5 if complexity >= 3 else 3
     
-    log.info("Function '%s' (%s): generated %d behavior plans (capped at %d)", func_name, classification, len(unique_plans), cap)
+    log.info("Function '%s' (%s): generated %d plans (capped at %d)", func_name, classification, len(unique_plans), cap)
     return unique_plans[:cap]
-
-
-def _normalize_return_type(return_type: Any) -> str:
-    """Normalize return type mapping into general categories (list, object, boolean, string, number)."""
-    if not return_type:
-        return "unknown"
-    text = str(return_type).strip().lower()
-    if any(token in text for token in ("list", "tuple", "set")):
-        return "list"
-    if any(token in text for token in ("dict", "map", "object", "json")):
-        return "object"
-    if "bool" in text:
-        return "boolean"
-    if any(token in text for token in ("str", "string", "text")):
-        return "string"
-    if any(token in text for token in ("int", "float", "number", "decimal", "long")):
-        return "number"
-    return "unknown"

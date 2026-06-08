@@ -51,13 +51,22 @@ def _assertion_lines(return_type: Any, expected_value: Any, classification: str)
         return ["        assertFalse(result);"]
         
     if normalized == "list":
-        return ["        assertTrue(result instanceof java.util.List);"]
+        return [
+            "        assertTrue(result instanceof java.util.List);",
+            "        assertFalse(((java.util.List) result).isEmpty());"
+        ]
     if normalized == "object":
-        return ["        assertTrue(result instanceof java.util.Map);"]
+        return [
+            "        assertTrue(result instanceof java.util.Map);",
+            "        assertFalse(((java.util.Map) result).isEmpty());"
+        ]
     if normalized == "boolean":
-        return ["        assertTrue(result || !result);"]
+        return ["        assertTrue(result instanceof Boolean);"]
     if normalized == "string":
-        return ["        assertTrue(result instanceof String);"]
+        return [
+            "        assertTrue(result instanceof String);",
+            "        assertFalse(((String) result).isEmpty());"
+        ]
     if normalized == "number":
         lines = ["        assertTrue(result instanceof Number);"]
         if classification == "Calculation":
@@ -173,6 +182,7 @@ def generate_junit_tests(
     for fn_entry in edge_cases["functions"]:
         func = fn_entry["name"]
         
+        func_tests: list[GeneratedTest] = []
         plans = generate_behavior_test_plans(fn_entry, "java")
         for plan in plans:
             test_name = plan["test_name"]
@@ -183,36 +193,55 @@ def generate_junit_tests(
             # Map dictionary inputs to positional arguments based on parameter list
             args_list = []
             for p in fn_entry.get("parameters", []):
-                if p in inputs:
-                    args_list.append(inputs[p])
-                elif fn_entry.get("default_values", {}).get(p) is not None:
-                    args_list.append(fn_entry["default_values"][p])
+                p_name = p["name"] if isinstance(p, dict) else p
+                if p_name in inputs:
+                    args_list.append(inputs[p_name])
+                elif fn_entry.get("default_values", {}).get(p_name) is not None:
+                    args_list.append(fn_entry["default_values"][p_name])
                 else:
                     args_list.append(None)
                     
             args_str = ", ".join(_java_repr(v) for v in args_list)
             
             if expected_behavior == "raises":
+                assertions_str = f"assertThrows({_exception_class_name(expected_val)}.class, ...)"
                 code = _render_exception_junit(func, args_str, test_name, class_name, expected_val, package_stmt)
             else:
+                assertions_str = "\n".join(_assertion_lines(fn_entry.get("return_type"), expected_val, plan["classification"]))
                 code = _render_junit(
                     func, args_str, test_name, class_name,
                     fn_entry.get("return_type"), expected_val, plan["classification"], package_stmt
                 )
                 
-            tests.append(
-                GeneratedTest(
-                    function=func,
-                    test_name=test_name,
-                    condition=plan["condition_source"],
-                    case=inputs,
-                    language="java",
-                    framework="junit",
-                    code=code,
-                    source_file=source_file,
-                    relative_source=relative_source,
-                )
+            # Log exact input and assertions
+            log.info("Generated Inputs:\n%s", inputs)
+            log.info("Generated Assertions:\n%s", assertions_str.strip())
+            
+            g_test = GeneratedTest(
+                function=func,
+                test_name=test_name,
+                condition=plan["condition_source"],
+                case=inputs,
+                language="java",
+                framework="junit",
+                code=code,
+                source_file=source_file,
+                relative_source=relative_source,
             )
+            tests.append(g_test)
+            func_tests.append(g_test)
             log.info("Generated junit test %s for %s (score=%d)", test_name, func, plan["quality_score"])
+            
+        import json
+        visibility_log = {
+            "function": func,
+            "parameters": fn_entry.get("parameters", []),
+            "allowed_values": fn_entry.get("allowed_values", {}),
+            "exceptions": fn_entry.get("exceptions", []) or fn_entry.get("exceptions_detail", []),
+            "return_type": fn_entry.get("return_type", "unknown"),
+            "generated_tests": [t["test_name"] for t in func_tests]
+        }
+        print(json.dumps(visibility_log, indent=2))
+        log.info("Function Generation Summary:\n%s", json.dumps(visibility_log, indent=2))
             
     return tests

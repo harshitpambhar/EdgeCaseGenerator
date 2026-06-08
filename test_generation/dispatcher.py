@@ -42,10 +42,10 @@ _register_defaults()
 
 
 def _function_priority(function_name: str, edge_cases: dict[str, Any]) -> tuple[str, int]:
-    conditions = list(edge_cases.keys()) if isinstance(edge_cases, dict) else []
+    conditions = list(edge_cases.get("edge_cases", {}).keys()) if isinstance(edge_cases, dict) else []
     total_cases = 0
     if isinstance(edge_cases, dict):
-        for values in edge_cases.values():
+        for values in edge_cases.get("edge_cases", {}).values():
             if isinstance(values, list):
                 total_cases += len(values)
             elif values is not None:
@@ -113,25 +113,22 @@ def _max_cases_for_priority(priority: str) -> int:
 
 
 def _trim_edge_case_entry(edge_case_entry: dict[str, Any], max_cases: int) -> dict[str, Any]:
-    if max_cases <= 0:
-        return {"name": edge_case_entry.get("name", ""), "edge_cases": {}}
-
     trimmed: dict[str, list[Any]] = {}
-    remaining = max_cases
-    for condition, values in edge_case_entry.get("edge_cases", {}).items():
-        if remaining <= 0:
-            break
-        if not isinstance(values, list):
-            values = [values]
-        selected = values[:remaining]
-        if selected:
-            trimmed[condition] = selected
-            remaining -= len(selected)
+    if max_cases > 0:
+        remaining = max_cases
+        for condition, values in edge_case_entry.get("edge_cases", {}).items():
+            if remaining <= 0:
+                break
+            if not isinstance(values, list):
+                values = [values]
+            selected = values[:remaining]
+            if selected:
+                trimmed[condition] = selected
+                remaining -= len(selected)
 
-    return {
-        "name": edge_case_entry.get("name", ""),
-        "edge_cases": trimmed,
-    }
+    result = dict(edge_case_entry)
+    result["edge_cases"] = trimmed
+    return result
 
 
 def generate_tests(
