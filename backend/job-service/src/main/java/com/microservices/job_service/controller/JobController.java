@@ -24,6 +24,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
@@ -71,8 +75,40 @@ public class JobController {
     @Operation(summary = "Download generated tests for a job")
     public ResponseEntity<Resource> downloadTests(@PathVariable UUID id) {
         try {
-            // Forward to Python ML service download endpoint (allowing docker network override)
             String mlServiceBase = System.getenv("ML_SERVICE_URL") != null ? System.getenv("ML_SERVICE_URL") : "http://localhost:8000";
+            
+            // Step 1: Try to load job and get resultJson from database
+            JobResponse job = jobService.getJob(id);
+            if (job != null && job.getResultJson() != null && !job.getResultJson().isEmpty()) {
+                try {
+                    ObjectMapper mapper = new ObjectMapper();
+                    JsonNode rootNode = mapper.readTree(job.getResultJson());
+                    
+                    // Construct stateless post payload
+                    Map<String, Object> payload = new HashMap<>();
+                    payload.put("tests", rootNode.get("generated_tests"));
+                    payload.put("files_parsed", rootNode.path("files_parsed").asInt(0));
+                    payload.put("functions_parsed", rootNode.path("functions_detected").asInt(
+                            rootNode.path("functions_parsed").asInt(0)
+                    ));
+                    
+                    String postUrl = mlServiceBase + "/api/download";
+                    byte[] zipBytes = restTemplate.postForObject(postUrl, payload, byte[].class);
+                    
+                    if (zipBytes != null && zipBytes.length > 0) {
+                        return ResponseEntity.ok()
+                                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                                .header(HttpHeaders.CONTENT_DISPOSITION, 
+                                        "attachment; filename=\"" + id + "_tests.zip\"")
+                                .body(new ByteArrayResource(zipBytes));
+                    }
+                } catch (Exception e) {
+                    // Log parsing/request error and fallback to old GET method
+                    System.err.println("Stateless download failed, falling back to disk: " + e.getMessage());
+                }
+            }
+            
+            // Fallback: GET /api/download/{id} (check disk storage)
             String mlServiceUrl = mlServiceBase + "/api/download/" + id.toString();
             Resource resource = restTemplate.getForObject(mlServiceUrl, Resource.class);
             

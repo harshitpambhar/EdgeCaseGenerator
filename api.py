@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from bootstrap import bootstrap
 bootstrap()
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
@@ -33,6 +33,12 @@ class AnalyzeRequest(BaseModel):
     run_tests: bool = True
     run_coverage: bool = True
     language: str | None = None
+
+
+class DownloadRequest(BaseModel):
+    tests: list[dict]
+    files_parsed: int = 0
+    functions_parsed: int = 0
 
 
 @app.get("/api/health")
@@ -249,3 +255,39 @@ def download_tests(job_id: str):
     except Exception as exc:
         log.exception("Download error for job %s: %s", job_id, exc)
         raise HTTPException(status_code=500, detail=f"Download failed: {str(exc)}")
+
+
+@app.post("/api/download")
+def download_tests_post(req: DownloadRequest):
+    """Statelessly generate and download tests ZIP archive from a JSON payload."""
+    import tempfile
+    from pathlib import Path
+    from test_generation.download_service import create_download_archive
+
+    try:
+        # Create ZIP archive in a temporary directory
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            zip_path = Path(tmp_dir) / "test_archive.zip"
+            
+            # Since we are stateless, we don't have the original repo_path. Pass None.
+            create_download_archive(
+                tests=req.tests,
+                output_path=zip_path,
+                repo_path=None,
+                files_parsed=req.files_parsed,
+                functions_parsed=req.functions_parsed,
+            )
+            
+            # Read ZIP into memory to return
+            zip_content = zip_path.read_bytes()
+            
+        return Response(
+            content=zip_content,
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": "attachment; filename=tests.zip"
+            }
+        )
+    except Exception as exc:
+        log.exception("Post download error: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Download generation failed: {str(exc)}")
