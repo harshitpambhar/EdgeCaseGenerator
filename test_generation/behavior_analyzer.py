@@ -220,11 +220,27 @@ def generate_behavior_test_plans(fn_entry: dict[str, Any], language: str) -> lis
     func_name = fn_entry.get("name", "unknown")
     return_type = _normalize_return_type(fn_entry.get("return_type"))
     param_details = fn_entry.get("parameter_details", []) or []
+    if not param_details:
+        log.warning(
+            "Skipping function '%s' because parameter metadata is missing",
+            func_name
+        )
+        return []  # stop early
     defaults = fn_entry.get("default_values", {}) or {}
     allowed_values = fn_entry.get("allowed_values", {}) or {}
     literal_values = fn_entry.get("literal_values", []) or []
     exceptions = fn_entry.get("exceptions_detail", []) or fn_entry.get("exceptions", []) or []
     branch_conditions = fn_entry.get("branch_conditions", []) or []
+    print("\n" + "=" * 80)
+    print("FUNCTION:", func_name)
+    print("PARAMETERS:", param_details)
+    print("RAW ENTRY:", fn_entry)
+    print("RETURN TYPE:", return_type)
+    print("ALLOWED VALUES:", allowed_values)
+    print("DEFAULTS:", defaults)
+    print("EXCEPTIONS:", exceptions)
+    print("BRANCHES:", branch_conditions)
+    print("=" * 80 + "\n")
     
     # Ensure exceptions contains string names
     exceptions = [str(e) for e in exceptions if e]
@@ -233,6 +249,12 @@ def generate_behavior_test_plans(fn_entry: dict[str, Any], language: str) -> lis
     
     # Required parameters set
     required_params = {p["name"] for p in param_details if p.get("required")}
+    # Hard stop if metadata is missing
+    if not param_details:
+        log.warning(
+            "Skipping function '%s' because parameter metadata is missing",
+            func_name
+        )
 
     # Establish Happy Path default values for all parameters
     happy_inputs: dict[str, Any] = {}
@@ -389,8 +411,11 @@ def generate_behavior_test_plans(fn_entry: dict[str, Any], language: str) -> lis
     existing_names = set()
 
     # Always include the happy path test
-    happy_name = f"test_{func_name}_happy_path"
-    plans.append({
+    # Only generate happy path if we actually know how to call the function
+    if happy_inputs:
+        happy_name = f"test_{func_name}_happy_path"
+
+        plans.append({
         "test_name": happy_name,
         "inputs": happy_inputs,
         "expected_behavior": "returns",
@@ -398,9 +423,9 @@ def generate_behavior_test_plans(fn_entry: dict[str, Any], language: str) -> lis
         "condition_source": "happy_path",
         "quality_score": 80,
         "description": "Happy path testing with standard inputs.",
-        "classification": classification
-    })
-    existing_names.add(happy_name)
+        "classification": classification,
+        })
+        existing_names.add(happy_name)
 
     # Determine default target exception
     target_exception = exceptions[0] if exceptions else "ValueError" if classification == "Validation" else "Exception"
@@ -409,7 +434,13 @@ def generate_behavior_test_plans(fn_entry: dict[str, Any], language: str) -> lis
     def validate_plan(plan: BehaviorTestPlan) -> bool:
         inputs = plan["inputs"]
         test_name = plan["test_name"]
-        
+        # Reject empty input plans for functions with required params
+        if required_params and not inputs:
+            log.info(
+                "Rejecting test plan %s: function has required params but inputs are empty",
+                test_name,
+            )
+            return False 
         # 1. Missing required parameters
         for param in param_details:
             pname = param["name"]
