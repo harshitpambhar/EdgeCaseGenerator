@@ -1,0 +1,23 @@
+# Short-lived analysis worker: clones a repo and runs cli_worker.py (invoked by job-service).
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git curl build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+RUN mkdir -p /tmp/ecg_workspaces
+
+ENV TEMP_WORKSPACE_ROOT=/tmp/ecg_workspaces
+ENV LOG_LEVEL=INFO
+ENV PYTHONUNBUFFERED=1
+ENV GIT_CLONE_DEPTH=1
+ENV TEST_EXECUTION_TIMEOUT=120
+
+ENTRYPOINT ["python", "cli_worker.py"]

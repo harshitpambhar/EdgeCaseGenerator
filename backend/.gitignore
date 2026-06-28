@@ -1,0 +1,58 @@
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.iml
+*.iws
+*.ipr
+
+# Build
+target/
+build/
+dist/
+*.jar
+*.war
+*.ear
+*.zip
+
+# Maven
+.m2/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+
+# Gradle
+.gradle/
+gradle/
+
+# Spring Boot
+.springBeans
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Node (if applicable)
+node_modules/
+npm-debug.log
+
+# Temp files
+*.tmp
+*.bak
+temp/

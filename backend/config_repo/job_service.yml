@@ -1,0 +1,43 @@
+server:
+  port: ${JOB_SERVICE_PORT:8083}
+
+spring:
+  datasource:
+    url: ${JOB_DB_URL:jdbc:postgresql://postgres:5432/job_db}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    defer-datasource-initialization: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  flyway:
+    enabled: false
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_DEFAULT_ZONE:http://eureka-server:8761/eureka/}
+    register-with-eureka: ${EUREKA_CLIENT_ENABLED:true}
+    fetch-registry: ${EUREKA_CLIENT_ENABLED:true}
+  instance:
+    prefer-ip-address: true
+
+management:
+  tracing:
+    export:
+      zipkin:
+        enabled: ${ZIPKIN_EXPORT_ENABLED:false}
+
+docker:
+  host: ${DOCKER_HOST:unix:///var/run/docker.sock}
+  worker:
+    image: ${DOCKER_WORKER_IMAGE:ecg-worker:latest}
+    network: ${DOCKER_WORKER_NETWORK:bridge}
+    timeout-seconds: ${DOCKER_WORKER_TIMEOUT:900}
+    auto-remove: true

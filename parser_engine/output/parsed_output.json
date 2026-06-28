@@ -1,0 +1,107 @@
+{
+  "source_file": "sample_code/sample.py",
+  "function_count": 2,
+  "functions": [
+    {
+      "name": "divide",
+      "parameters": [
+        {
+          "name": "a",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "b",
+          "type": "number",
+          "required": true
+        }
+      ],
+      "parameter_details": [
+        {
+          "name": "a",
+          "type": "number",
+          "default_value": null
+        },
+        {
+          "name": "b",
+          "type": "number",
+          "default_value": null
+        }
+      ],
+      "return_type": "number",
+      "docstring": "",
+      "conditions": [
+        "b == 0"
+      ],
+      "branch_conditions": [
+        "b == 0"
+      ],
+      "comparison_operators": [
+        "Eq"
+      ],
+      "literal_values": [
+        0,
+        "Cannot divide by zero"
+      ],
+      "allowed_values": {
+        "b": [
+          0
+        ]
+      },
+      "exceptions_detail": [
+        "ValueError"
+      ],
+      "default_values": {},
+      "loops": 0,
+      "returns": 1,
+      "exceptions": [
+        "ValueError"
+      ],
+      "complexity_score": 2
+    },
+    {
+      "name": "check_age",
+      "parameters": [
+        {
+          "name": "age",
+          "type": "number",
+          "required": true
+        }
+      ],
+      "parameter_details": [
+        {
+          "name": "age",
+          "type": "number",
+          "default_value": null
+        }
+      ],
+      "return_type": "string",
+      "docstring": "",
+      "conditions": [
+        "age > 18"
+      ],
+      "branch_conditions": [
+        "age > 18"
+      ],
+      "comparison_operators": [
+        "Gt"
+      ],
+      "literal_values": [
+        18,
+        "Minor",
+        "Adult"
+      ],
+      "allowed_values": {
+        "age": [
+          18
+        ]
+      },
+      "exceptions_detail": [],
+      "default_values": {},
+      "loops": 0,
+      "returns": 2,
+      "exceptions": [],
+      "complexity_score": 2
+    }
+  ]
+}
