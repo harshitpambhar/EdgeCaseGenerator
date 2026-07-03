@@ -13,14 +13,12 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from backend.database import get_db
 
-# Try to import passlib, fallback to hashlib if not installed
+# Try to import bcrypt directly to avoid passlib compatibility issues with bcrypt 4.x
 try:
-    from passlib.context import CryptContext
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-    _PASSLIB_AVAILABLE = True
+    import bcrypt
+    _BCRYPT_AVAILABLE = True
 except ImportError:
-    pwd_context = None
-    _PASSLIB_AVAILABLE = False
+    _BCRYPT_AVAILABLE = False
 
 # Try to import jose, fallback to PyJWT or custom token verification if not installed
 try:
@@ -44,9 +42,15 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login", auto_error=False
 
 
 def hash_password(password: str) -> str:
-    """Hash password using bcrypt or hashlib fallback."""
-    if _PASSLIB_AVAILABLE and pwd_context:
-        return pwd_context.hash(password)
+    """Hash password using bcrypt directly or hashlib fallback."""
+    if _BCRYPT_AVAILABLE:
+        try:
+            password_bytes = password.encode('utf-8')
+            salt = bcrypt.gensalt()
+            hashed = bcrypt.hashpw(password_bytes, salt)
+            return hashed.decode('utf-8')
+        except Exception:
+            pass
     # Fallback to SHA256 with static salt
     salted = password + SECRET_KEY
     return hashlib.sha256(salted.encode()).hexdigest()
@@ -54,9 +58,11 @@ def hash_password(password: str) -> str:
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify standard password against hash."""
-    if _PASSLIB_AVAILABLE and pwd_context:
+    if _BCRYPT_AVAILABLE:
         try:
-            return pwd_context.verify(plain_password, hashed_password)
+            plain_bytes = plain_password.encode('utf-8')
+            hashed_bytes = hashed_password.encode('utf-8')
+            return bcrypt.checkpw(plain_bytes, hashed_bytes)
         except Exception:
             pass
     # Fallback verification

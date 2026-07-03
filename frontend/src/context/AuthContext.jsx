@@ -6,7 +6,7 @@ const AuthContext = createContext(null);
 /** Backend returns `fullName`; header/UI expect `name`. */
 function normalizeStoredUser(u) {
   if (!u) return null;
-  const displayName = u.fullName ?? u.name ?? '';
+  const displayName = u.fullName ?? u.name ?? u.username ?? '';
   return { ...u, name: displayName, fullName: u.fullName ?? u.name ?? displayName };
 }
 

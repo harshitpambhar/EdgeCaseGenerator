@@ -51,13 +51,15 @@ app.add_middleware(
 # ── REQUEST SCHEMAS ───────────────────────────────────────────────────────────
 
 class SignupRequest(BaseModel):
-    username: str
+    username: str | None = None
+    name: str | None = None
     email: str
     password: str
 
 
 class LoginRequest(BaseModel):
-    username: str
+    username: str | None = None
+    email: str | None = None
     password: str
 
 
@@ -89,13 +91,27 @@ def health():
 
 @app.post("/api/auth/signup")
 def signup(req: SignupRequest, db: Session = Depends(get_db)):
-    # Check if user already exists
-    existing_user = db.query(User).filter((User.username == req.username) | (User.email == req.email)).first()
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Username or email already registered")
+    import re
+    # Determine username
+    username = req.username or req.name or req.email.split("@")[0]
+    username = re.sub(r'[^a-zA-Z0-9_]', '_', username)
+    if not username:
+        username = "user"
+        
+    # Ensure username uniqueness in the database
+    base_username = username
+    counter = 1
+    while db.query(User).filter(User.username == username).first():
+        username = f"{base_username}_{counter}"
+        counter += 1
+        
+    # Check if email is already registered
+    existing_email = db.query(User).filter(User.email == req.email).first()
+    if existing_email:
+        raise HTTPException(status_code=400, detail="Email is already registered")
         
     hashed = hash_password(req.password)
-    user = User(username=req.username, email=req.email, hashed_password=hashed)
+    user = User(username=username, email=req.email, hashed_password=hashed)
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -104,21 +120,37 @@ def signup(req: SignupRequest, db: Session = Depends(get_db)):
 
 @app.post("/api/auth/login")
 def login(req: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == req.username).first()
+    identifier = req.email or req.username
+    if not identifier:
+        raise HTTPException(status_code=400, detail="Username or email is required")
+        
+    user = db.query(User).filter((User.email == identifier) | (User.username == identifier)).first()
     if not user or not verify_password(req.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Invalid username or password")
+        raise HTTPException(status_code=401, detail="Invalid email or password")
         
     token = create_access_token(data={"sub": user.username})
     return {
         "token": token,
         "token_type": "bearer",
-        "user": {"username": user.username, "email": user.email}
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "name": user.username,
+            "fullName": user.username
+        }
     }
 
 
 @app.get("/api/auth/me")
 def get_me(current_user: User = Depends(get_current_user)):
-    return {"username": current_user.username, "email": current_user.email}
+    return {
+        "id": current_user.id,
+        "username": current_user.username,
+        "email": current_user.email,
+        "name": current_user.username,
+        "fullName": current_user.username
+    }
 
 
 # ── REQUIREMENT MANAGEMENT ENDPOINTS ──────────────────────────────────────────
