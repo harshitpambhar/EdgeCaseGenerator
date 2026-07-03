@@ -42,9 +42,8 @@ logs/
 
 # Generated pipeline outputs
 parser-engine/output/parsed_output.json
-ml-service/output/edge_cases.json
-ml-service/output/generated_tests.py
-ml-service/output/generated_tests.json
-ml-service/output/risk_scores.json
-risk-analysis-service/output/risk_scores.json
+ml_service/output/edge_cases.json
+ml_service/output/generated_tests.py
+ml_service/output/generated_tests.json
+ml_service/output/risk_scores.json
 coverage-analysis-service/output/coverage_report.json
